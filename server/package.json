@@ -1,20 +1,24 @@
 {
   "name": "treasure-home-backend",
   "version": "1.0.0",
+  "description": "Backend API for Treasure-Home School Portal (Express + Supabase)",
   "main": "index.ts",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only index.ts",
     "start": "node dist/index.js",
-    "build": "tsc"
+    "build": "tsc -p ."
   },
   "dependencies": {
-    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.3",
-    "@supabase/supabase-js": "^2.0.0"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "@supabase/supabase-js": "^2.39.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "ts-node-dev": "^2.0.0"
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
