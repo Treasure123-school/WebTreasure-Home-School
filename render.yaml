@@ -1,15 +1,11 @@
 services:
   - type: web
-    name: treasure-home-school-server
+    name: school-backend
     env: node
     plan: free
-    rootDir: server
+    rootDir: server  # Tell Render to use the server directory
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: SESSION_SECRET
-        sync: false
