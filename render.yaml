@@ -1,19 +1,12 @@
 services:
   - type: web
-    name: treasure-home-backend
+    name: treasure-home-school-server
     env: node
-    plan: free
     rootDir: server
-    buildCommand: "npm install"
-    startCommand: "npm run start"
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
-      - key: NODE_VERSION
-        value: 18
-      - key: PORT
-        value: 10000
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+      - key: DATABASE_URL
+        value: your_database_url_here
+      - key: SESSION_SECRET
+        generateValue: true
