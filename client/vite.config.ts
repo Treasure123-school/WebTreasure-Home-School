@@ -1,15 +1,14 @@
+// client/vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-// Simplified version without top-level await
+// Remove all Replit-specific plugins for Vercel deployment
 export default defineConfig({
   plugins: [
     react(),
-    runtimeErrorOverlay(),
-    // Remove the Replit-specific plugin for Vercel deployment
-    // It's only needed for Replit development
+    // REMOVED: runtimeErrorOverlay and cartographer plugins
+    // These are only needed for Replit development
   ],
   resolve: {
     alias: {
@@ -22,11 +21,5 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "../dist/public"),
     emptyOutDir: true,
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
   },
 });
