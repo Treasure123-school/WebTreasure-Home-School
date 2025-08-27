@@ -23,7 +23,7 @@ import {
   type Enrollment,
   type InsertMessage,
   type Message,
-} from "@shared/schema";
+} from '../shared/schema';
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
