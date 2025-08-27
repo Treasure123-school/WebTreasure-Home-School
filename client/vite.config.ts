@@ -3,12 +3,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// Remove all Replit-specific plugins for Vercel deployment
+// COMPLETELY remove Replit-specific plugins for Vercel
 export default defineConfig({
   plugins: [
-    react(),
-    // REMOVED: runtimeErrorOverlay and cartographer plugins
-    // These are only needed for Replit development
+    react()
+    // NO Replit plugins - they're only for Replit development
   ],
   resolve: {
     alias: {
