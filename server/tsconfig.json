@@ -2,13 +2,25 @@
   "compilerOptions": {
     "target": "es2019",
     "module": "commonjs",
-    "rootDir": ".",      // ✅ Change from "src" to "."
-    "outDir": "dist",    // ✅ Keep this
+    "rootDir": "../",  // ✅ Change from "." to "../" (root directory)
+    "outDir": "./dist",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": "../",  // ✅ Add baseUrl for path resolution
+    "paths": {
+      "@shared/*": ["shared/*"]  // ✅ Add path mapping for shared files
+    }
   },
-  "include": ["**/*.ts"],  // ✅ Change from "src/**/*.ts" to "**/*.ts"
-  "exclude": ["node_modules", "dist", "vite.ts"]
+  "include": [
+    "./**/*.ts",      // ✅ Include all files in server directory
+    "../shared/**/*.ts"  // ✅ Explicitly include shared files
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "vite.ts",        // ✅ Exclude development files
+    "**/*.test.ts"    // ✅ Exclude test files
+  ]
 }
