@@ -26,7 +26,39 @@ import {
 } from './schema';
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
-import { SQL } from "drizzle-orm";
+
+// Utility functions for type conversion
+function toNumber(value: unknown, defaultValue = 0): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const num = parseInt(value, 10);
+    return isNaN(num) ? defaultValue : num;
+  }
+  return defaultValue;
+}
+
+function toBoolean(value: unknown, defaultValue = false): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    return value.toLowerCase() === 'true' || value === '1';
+  }
+  if (typeof value === 'number') return value !== 0;
+  return defaultValue;
+}
+
+function toString(value: unknown, defaultValue = ''): string {
+  if (typeof value === 'string') return value;
+  if (value == null) return defaultValue;
+  return String(value);
+}
+
+function toArray(value: unknown, defaultValue: any[] = []): any[] {
+  return Array.isArray(value) ? value : defaultValue;
+}
+
+function toObject(value: unknown, defaultValue: object = {}): object {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : defaultValue;
+}
 
 // Fix the interface to use proper types instead of 'unknown'
 export interface IStorage {
@@ -175,14 +207,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExam(examData: InsertExam): Promise<Exam> {
-    const [created] = await db.insert(exams).values(examData).returning();
+    // Convert data to proper types
+    const processedData: InsertExam = {
+      className: toString(examData.className),
+      title: toString(examData.title),
+      createdBy: toString(examData.createdBy),
+      subject: toString(examData.subject),
+      duration: toNumber(examData.duration, 30),
+      isActive: toBoolean(examData.isActive, true),
+    };
+
+    const [created] = await db.insert(exams).values(processedData).returning();
     return created;
   }
 
   async updateExam(id: string, examData: Partial<InsertExam>): Promise<Exam> {
+    // Convert data to proper types
+    const processedData: Partial<InsertExam> = {
+      className: examData.className !== undefined ? toString(examData.className) : undefined,
+      title: examData.title !== undefined ? toString(examData.title) : undefined,
+      subject: examData.subject !== undefined ? toString(examData.subject) : undefined,
+      duration: examData.duration !== undefined ? toNumber(examData.duration) : undefined,
+      isActive: examData.isActive !== undefined ? toBoolean(examData.isActive) : undefined,
+    };
+
     const [updated] = await db
       .update(exams)
-      .set(examData)
+      .set(processedData)
       .where(eq(exams.id, id))
       .returning();
     return updated;
@@ -198,7 +249,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createQuestion(questionData: InsertQuestion): Promise<Question> {
-    const [created] = await db.insert(questions).values(questionData).returning();
+    // Convert data to proper types
+    const processedData: InsertQuestion = {
+      examId: toString(questionData.examId),
+      questionText: toString(questionData.questionText),
+      correctAnswer: toString(questionData.correctAnswer),
+      options: toArray(questionData.options, []),
+      marks: toNumber(questionData.marks, 1),
+    };
+
+    const [created] = await db.insert(questions).values(processedData).returning();
     
     // Update exam total marks
     const examQuestions = await this.getQuestionsByExam(questionData.examId);
@@ -209,9 +269,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateQuestion(id: string, questionData: Partial<InsertQuestion>): Promise<Question> {
+    // Convert data to proper types
+    const processedData: Partial<InsertQuestion> = {
+      questionText: questionData.questionText !== undefined ? toString(questionData.questionText) : undefined,
+      correctAnswer: questionData.correctAnswer !== undefined ? toString(questionData.correctAnswer) : undefined,
+      options: questionData.options !== undefined ? toArray(questionData.options) : undefined,
+      marks: questionData.marks !== undefined ? toNumber(questionData.marks) : undefined,
+    };
+
     const [updated] = await db
       .update(questions)
-      .set(questionData)
+      .set(processedData)
       .where(eq(questions.id, id))
       .returning();
     return updated;
@@ -255,9 +323,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSubmission(submissionData: InsertExamSubmission): Promise<ExamSubmission> {
+    // Convert data to proper types
+    const processedData = {
+      examId: toString(submissionData.examId),
+      studentId: toString(submissionData.studentId),
+      answers: toObject(submissionData.answers, {}),
+    };
+
     // Get exam questions to calculate score
-    const examQuestions = await this.getQuestionsByExam(submissionData.examId);
-    const answers = submissionData.answers as Record<string, string>;
+    const examQuestions = await this.getQuestionsByExam(processedData.examId);
+    const answers = processedData.answers as Record<string, string>;
     
     let score = 0;
     let totalMarks = 0;
@@ -274,7 +349,7 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db
       .insert(examSubmissions)
       .values({
-        ...submissionData,
+        ...processedData,
         score,
         totalMarks,
         percentage,
@@ -290,7 +365,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
-    const [created] = await db.insert(enrollments).values(enrollmentData).returning();
+    // Convert data to proper types
+    const processedData: InsertEnrollment = {
+      childName: toString(enrollmentData.childName),
+      parentName: toString(enrollmentData.parentName),
+      parentEmail: toString(enrollmentData.parentEmail),
+      parentPhone: toString(enrollmentData.parentPhone),
+      childAge: toNumber(enrollmentData.childAge),
+    };
+
+    const [created] = await db.insert(enrollments).values(processedData).returning();
     return created;
   }
 
@@ -315,7 +399,7 @@ export class DatabaseStorage implements IStorage {
 
   // User management
   async getUsersByRole(role: string): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.role, role));
+    return await db.select().from(users).where(eq(users.role, role as any));
   }
 
   async updateUserRole(id: string, role: string): Promise<User> {
