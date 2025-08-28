@@ -2,7 +2,7 @@
   "name": "treasure-home-school-client",
   "version": "1.0.0",
   "private": true,
-  "scripts": {
+  "type": "module",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -14,7 +14,8 @@
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.3"
+    "react-router-dom": "^6.22.3",
+    "wouter": "^3.3.5"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.15",
