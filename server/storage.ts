@@ -26,9 +26,11 @@ import {
 } from './schema';
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
+import { SQL } from "drizzle-orm";
 
+// Fix the interface to use proper types instead of 'unknown'
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   
@@ -80,7 +82,7 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
@@ -172,15 +174,15 @@ export class DatabaseStorage implements IStorage {
     return exam;
   }
 
-  async createExam(exam: InsertExam): Promise<Exam> {
-    const [created] = await db.insert(exams).values(exam).returning();
+  async createExam(examData: InsertExam): Promise<Exam> {
+    const [created] = await db.insert(exams).values(examData).returning();
     return created;
   }
 
-  async updateExam(id: string, exam: Partial<InsertExam>): Promise<Exam> {
+  async updateExam(id: string, examData: Partial<InsertExam>): Promise<Exam> {
     const [updated] = await db
       .update(exams)
-      .set(exam)
+      .set(examData)
       .where(eq(exams.id, id))
       .returning();
     return updated;
@@ -195,21 +197,21 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(questions).where(eq(questions.examId, examId));
   }
 
-  async createQuestion(question: InsertQuestion): Promise<Question> {
-    const [created] = await db.insert(questions).values(question).returning();
+  async createQuestion(questionData: InsertQuestion): Promise<Question> {
+    const [created] = await db.insert(questions).values(questionData).returning();
     
     // Update exam total marks
-    const examQuestions = await this.getQuestionsByExam(question.examId);
+    const examQuestions = await this.getQuestionsByExam(questionData.examId);
     const totalMarks = examQuestions.reduce((sum, q) => sum + q.marks, 0);
-    await db.update(exams).set({ totalMarks }).where(eq(exams.id, question.examId));
+    await db.update(exams).set({ totalMarks }).where(eq(exams.id, questionData.examId));
     
     return created;
   }
 
-  async updateQuestion(id: string, question: Partial<InsertQuestion>): Promise<Question> {
+  async updateQuestion(id: string, questionData: Partial<InsertQuestion>): Promise<Question> {
     const [updated] = await db
       .update(questions)
-      .set(question)
+      .set(questionData)
       .where(eq(questions.id, id))
       .returning();
     return updated;
@@ -287,8 +289,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(enrollments).orderBy(desc(enrollments.createdAt));
   }
 
-  async createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment> {
-    const [created] = await db.insert(enrollments).values(enrollment).returning();
+  async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
+    const [created] = await db.insert(enrollments).values(enrollmentData).returning();
     return created;
   }
 
@@ -306,8 +308,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(messages).orderBy(desc(messages.createdAt));
   }
 
-  async createMessage(message: InsertMessage): Promise<Message> {
-    const [created] = await db.insert(messages).values(message).returning();
+  async createMessage(messageData: InsertMessage): Promise<Message> {
+    const [created] = await db.insert(messages).values(messageData).returning();
     return created;
   }
 
