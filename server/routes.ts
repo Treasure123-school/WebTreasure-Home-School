@@ -9,34 +9,29 @@ import {
   insertExamSubmissionSchema,
   insertEnrollmentSchema,
   insertMessageSchema,
-  type Exam // ADD THIS IMPORT
+  type Exam
 } from './schema';
 import { z } from "zod";
 
-// REMOVE OR COMMENT OUT THESE LINES:
-// import { setupAuth, isAuthenticated } from "./replitAuth";
-
-// ADD THESE AUTH STUBS SINCE YOU REMOVED replitAuth.ts
+// Temporary auth stubs since replitAuth.ts was deleted
 const setupAuth = async (app: Express) => {
-  // Your auth setup logic here or remove if not needed
   console.log("Auth setup would go here");
 };
 
 const isAuthenticated = (req: any, res: any, next: any) => {
-  // Your auth middleware logic here or remove if not needed
   console.log("Auth check would go here");
-  next(); // Remove this if you want to actually block unauthenticated requests
+  next();
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware - COMMENT OUT OR REMOVE IF NOT USING AUTH
+  // Auth middleware (commented out since replitAuth is deleted)
   // await setupAuth(app);
 
-  // Auth routes - UPDATE THESE TO NOT USE AUTH IF NOT NEEDED
+  // Auth routes
   app.get('/api/auth/user', /* isAuthenticated, */ async (req: any, res) => {
     try {
-      // const userId = req.user.claims.sub; // COMMENT OUT IF NOT USING AUTH
-      const userId = "temp-user-id"; // TEMPORARY FIX - REMOVE LATER
+      // const userId = req.user.claims.sub;
+      const userId = "temp-user-id";
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -45,7 +40,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Announcements routes - REMOVE isAuthenticated IF NOT USING AUTH
+  // Announcements routes
   app.get('/api/announcements', async (req, res) => {
     try {
       const { audience } = req.query;
@@ -61,8 +56,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/announcements', /* isAuthenticated, */ async (req: any, res) => {
     try {
-      // const userId = req.user.claims.sub; // COMMENT OUT IF NOT USING AUTH
-      const userId = "temp-user-id"; // TEMPORARY FIX - REMOVE LATER
+      // const userId = req.user.claims.sub;
+      const userId = "temp-user-id";
       const data = insertAnnouncementSchema.parse({ ...req.body, createdBy: userId });
       const announcement = await storage.createAnnouncement(data);
       res.json(announcement);
@@ -72,19 +67,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ... (KEEP ALL OTHER ROUTES THE SAME BUT REMOVE isAuthenticated MIDDLEWARE)
+  // ... (KEEP ALL OTHER ROUTES BUT REMOVE OR COMMENT OUT isAuthenticated MIDDLEWARE)
 
   // Exam routes - FIX THE exams VARIABLE TYPE ISSUE
   app.get('/api/exams', /* isAuthenticated, */ async (req: any, res) => {
     try {
-      // const user = await storage.getUser(req.user.claims.sub); // COMMENT OUT IF NOT USING AUTH
-      const user = await storage.getUser("temp-user-id"); // TEMPORARY FIX
+      // const user = await storage.getUser(req.user.claims.sub);
+      const user = await storage.getUser("temp-user-id");
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // FIX THIS LINE - ADD EXPLICIT TYPE ANNOTATION
-      let exams: Exam[]; // ADD THIS TYPE ANNOTATION
+      let exams: Exam[]; // FIXED: Added explicit type annotation
       
       if (user.role === 'student' && user.className) {
         exams = await storage.getActiveExamsByClass(user.className);
