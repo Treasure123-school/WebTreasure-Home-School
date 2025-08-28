@@ -25,7 +25,7 @@ import {
   type Message,
 } from './schema';
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -252,10 +252,10 @@ export class DatabaseStorage implements IStorage {
     return submission;
   }
 
-  async createSubmission(submission: InsertExamSubmission): Promise<ExamSubmission> {
+  async createSubmission(submissionData: InsertExamSubmission): Promise<ExamSubmission> {
     // Get exam questions to calculate score
-    const examQuestions = await this.getQuestionsByExam(submission.examId);
-    const answers = submission.answers as Record<string, string>;
+    const examQuestions = await this.getQuestionsByExam(submissionData.examId);
+    const answers = submissionData.answers as Record<string, string>;
     
     let score = 0;
     let totalMarks = 0;
@@ -272,7 +272,7 @@ export class DatabaseStorage implements IStorage {
     const [created] = await db
       .insert(examSubmissions)
       .values({
-        ...submission,
+        ...submissionData,
         score,
         totalMarks,
         percentage,
@@ -317,9 +317,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserRole(id: string, role: string): Promise<User> {
+    // Validate role
+    const validRoles = ['admin', 'teacher', 'student', 'parent'] as const;
+    if (!validRoles.includes(role as any)) {
+      throw new Error(`Invalid role: ${role}`);
+    }
+
     const [updated] = await db
       .update(users)
-      .set({ role: role as any, updatedAt: new Date() })
+      .set({ 
+        role: role as 'admin' | 'teacher' | 'student' | 'parent',
+        updatedAt: new Date() 
+      })
       .where(eq(users.id, id))
       .returning();
     return updated;
