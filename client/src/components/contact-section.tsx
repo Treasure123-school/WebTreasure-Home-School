@@ -16,7 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { insertMessageSchema, insertEnrollmentSchema } from "@shared/schema";
+import { insertMessageSchema, insertEnrollmentSchema } from "@/lib/types";
 import { MapPin, Phone, MessageCircle, Mail, Send } from "lucide-react";
 import { z } from "zod";
 
