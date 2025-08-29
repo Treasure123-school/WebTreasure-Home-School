@@ -7,13 +7,13 @@ const app = express();
 // ✅ ADD CORS MIDDLEWARE - Configure for Vercel frontend + local development
 app.use(cors({
   origin: [
-    'https://your-vercel-app.vercel.app', // ✅ Replace with your actual Vercel domain
-    'http://localhost:3000',              // ✅ Local development
-    'http://localhost:5173'               // ✅ Vite dev server
+    'https://web-treasure-home-school.vercel.app', // ✅ Your actual Vercel domain
+    'http://localhost:3000',                       // ✅ Local development
+    'http://localhost:5173'                        // ✅ Vite dev server
   ],
-  credentials: true,                      // ✅ Allow cookies/auth headers
+  credentials: true,                               // ✅ Allow cookies/auth headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // ✅ Allowed methods
-  allowedHeaders: ['Content-Type', 'Authorization']     // ✅ Allowed headers
+  allowedHeaders: ['Content-Type', 'Authorization']      // ✅ Allowed headers
 }));
 
 app.use(express.json());
@@ -66,5 +66,7 @@ app.get('/health', (_req: Request, res: Response) => {
   server.listen(port, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${port}`);
     console.log(`🌐 Health check: http://localhost:${port}/health`);
+    console.log(`🔗 Frontend: https://web-treasure-home-school.vercel.app`);
+    console.log(`✅ CORS enabled for Vercel frontend`);
   });
 })();
