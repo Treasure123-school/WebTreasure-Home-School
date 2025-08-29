@@ -1,6 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// ✅ ADD API BASE URL
 const API_BASE_URL = 'https://webtreasure-home-school.onrender.com/api';
 
 async function throwIfResNotOk(res: Response) {
@@ -15,8 +14,7 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // ✅ PREPEND API BASE URL
-  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
   
   const res = await fetch(fullUrl, {
     method,
@@ -35,9 +33,9 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // ✅ PREPEND API BASE URL TO QUERY KEY
-    const path = queryKey.join("/");
-    const fullUrl = path.startsWith('http') ? path : `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    // ✅ FIXED: Remove leading slashes and join properly
+    const path = queryKey.filter(part => part !== '').join('/').replace(/^\/+/, '');
+    const fullUrl = `${API_BASE_URL}/${path}`;
     
     const res = await fetch(fullUrl, {
       credentials: "include",
