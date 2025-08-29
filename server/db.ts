@@ -1,5 +1,5 @@
-import { Pool } from 'pg'; // ← CHANGE TO pg
-import { drizzle } from 'drizzle-orm/pg'; // ← CHANGE TO pg
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres'; // ← CORRECT IMPORT
 import * as schema from './schema';
 
 if (!process.env.DATABASE_URL) {
