@@ -1,6 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-const API_BASE_URL = 'https://webtreasure-home-school.onrender.com/api';
+const API_BASE_URL = 'https://webtreasure-home-school.onrender.com';
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
