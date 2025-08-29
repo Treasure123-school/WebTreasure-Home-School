@@ -30,15 +30,11 @@ app.use((req, res, next) => {
 
   // Serve static files in production
   if (app.get("env") === "production") {
-    app.use(express.static('client/dist'));
+    app.use(express.static('../client/dist')); // Fix path to client
   }
 
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const port = parseInt(process.env.PORT || '10000', 10); // Change to 10000
+  server.listen(port, "0.0.0.0", () => { // Simplify listen call
     console.log(`Server running on port ${port}`);
   });
 })();
