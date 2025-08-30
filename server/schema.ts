@@ -9,6 +9,7 @@ import {
   integer,
   pgEnum,
   boolean,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -21,96 +22,149 @@ export const sessions = pgTable("sessions", {
   expire: timestamp("expire").notNull(),
 });
 
-// Role enum
-export const roleEnum = pgEnum('role', ['admin', 'teacher', 'student', 'parent']);
+// Roles Table (from your database)
+export const roles = pgTable("roles", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  role_name: varchar("role_name").notNull().unique(),
+});
 
-// User storage table - FIXED: Use consistent naming
+// User storage table - MATCHING YOUR DATABASE
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"), // camelCase in TS, snake_case in DB
-  lastName: varchar("last_name"),   // camelCase in TS, snake_case in DB
-  profileImageUrl: varchar("profile_image_url"), // camelCase in TS, snake_case in DB
-  role: roleEnum("role").notNull().default('student'),
+  id: uuid("id").primaryKey(),
+  role_id: integer("role_id").references(() => roles.id),
+  full_name: varchar("full_name").notNull(),
+  email: varchar("email").notNull().unique(),
   phone: varchar("phone"),
   gender: varchar("gender"),
-  dateOfBirth: timestamp("date_of_birth"), // camelCase in TS, snake_case in DB
-  className: varchar("class_name"), // camelCase in TS, snake_case in DB
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
-  updatedAt: timestamp("updated_at").defaultNow(), // camelCase in TS, snake_case in DB
+  dob: timestamp("dob"),
+  class: varchar("class"),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Announcements - MATCHING YOUR DATABASE
 export const announcements = pgTable("announcements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   title: varchar("title").notNull(),
   body: text("body").notNull(),
-  audience: varchar("audience").notNull().default('all'),
-  createdBy: varchar("created_by").notNull().references(() => users.id), // camelCase in TS, snake_case in DB
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  audience: varchar("audience").notNull().default('All'),
+  created_by: uuid("created_by").references(() => users.id),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Gallery - MATCHING YOUR DATABASE
 export const gallery = pgTable("gallery", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  imageUrl: varchar("image_url").notNull(), // camelCase in TS, snake_case in DB
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  image_url: varchar("image_url").notNull(),
   caption: text("caption"),
-  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id), // camelCase in TS, snake_case in DB
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  uploaded_by: uuid("uploaded_by").references(() => users.id),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Exams - MATCHING YOUR DATABASE
 export const exams = pgTable("exams", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   title: varchar("title").notNull(),
   subject: varchar("subject").notNull(),
-  className: varchar("class_name").notNull(), // camelCase in TS, snake_case in DB
-  duration: integer("duration").notNull().default(30),
-  totalMarks: integer("total_marks").notNull().default(0), // camelCase in TS, snake_case in DB
-  isActive: boolean("is_active").notNull().default(true), // camelCase in TS, snake_case in DB
-  createdBy: varchar("created_by").notNull().references(() => users.id), // camelCase in TS, snake_case in DB
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  class: varchar("class").notNull(),
+  created_by: uuid("created_by").references(() => users.id),
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Questions - MATCHING YOUR DATABASE
 export const questions = pgTable("questions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  examId: varchar("exam_id").notNull().references(() => exams.id, { onDelete: 'cascade' }), // camelCase in TS, snake_case in DB
-  questionText: text("question_text").notNull(), // camelCase in TS, snake_case in DB
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  exam_id: integer("exam_id").references(() => exams.id, { onDelete: 'cascade' }),
+  question_text: text("question_text").notNull(),
   options: jsonb("options").notNull(),
-  correctAnswer: varchar("correct_answer").notNull(), // camelCase in TS, snake_case in DB
+  correct_answer: varchar("correct_answer").notNull(),
   marks: integer("marks").notNull().default(1),
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Exam Submissions - MATCHING YOUR DATABASE
 export const examSubmissions = pgTable("exam_submissions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  examId: varchar("exam_id").notNull().references(() => exams.id), // camelCase in TS, snake_case in DB
-  studentId: varchar("student_id").notNull().references(() => users.id), // camelCase in TS, snake_case in DB
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  exam_id: integer("exam_id").references(() => exams.id),
+  student_id: uuid("student_id").references(() => users.id),
   answers: jsonb("answers").notNull(),
   score: integer("score").notNull().default(0),
-  totalMarks: integer("total_marks").notNull().default(0), // camelCase in TS, snake_case in DB
-  percentage: integer("percentage").notNull().default(0),
-  submittedAt: timestamp("submitted_at").defaultNow(), // camelCase in TS, snake_case in DB
-  gradedBy: varchar("graded_by").references(() => users.id), // camelCase in TS, snake_case in DB
+  submitted_at: timestamp("submitted_at").defaultNow(),
+  graded_by: uuid("graded_by").references(() => users.id),
 });
 
+// Enrollments - MATCHING YOUR DATABASE
 export const enrollments = pgTable("enrollments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  childName: varchar("child_name").notNull(), // camelCase in TS, snake_case in DB
-  parentName: varchar("parent_name").notNull(), // camelCase in TS, snake_case in DB
-  parentEmail: varchar("parent_email").notNull(), // camelCase in TS, snake_case in DB
-  parentPhone: varchar("parent_phone").notNull(), // camelCase in TS, snake_case in DB
-  childAge: integer("child_age").notNull(), // camelCase in TS, snake_case in DB
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  child_name: varchar("child_name").notNull(),
+  parent_name: varchar("parent_name").notNull(),
+  parent_email: varchar("parent_email").notNull(),
+  parent_phone: varchar("parent_phone").notNull(),
+  child_age: integer("child_age").notNull(),
   status: varchar("status").notNull().default('pending'),
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  created_at: timestamp("created_at").defaultNow(),
 });
 
+// Messages - MATCHING YOUR DATABASE
 export const messages = pgTable("messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: varchar("name").notNull(),
   email: varchar("email").notNull(),
   message: text("message").notNull(),
-  createdAt: timestamp("created_at").defaultNow(), // camelCase in TS, snake_case in DB
+  created_at: timestamp("created_at").defaultNow(),
 });
 
-// ... KEEP ALL RELATIONS AND SCHEMA TYPES THE SAME ...
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  announcements: many(announcements),
+  gallery: many(gallery),
+  exams: many(exams),
+  submissions: many(examSubmissions),
+}));
+
+export const announcementsRelations = relations(announcements, ({ one }) => ({
+  creator: one(users, {
+    fields: [announcements.created_by],
+    references: [users.id],
+  }),
+}));
+
+export const galleryRelations = relations(gallery, ({ one }) => ({
+  uploader: one(users, {
+    fields: [gallery.uploaded_by],
+    references: [users.id],
+  }),
+}));
+
+export const examsRelations = relations(exams, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [exams.created_by],
+    references: [users.id],
+  }),
+  questions: many(questions),
+  submissions: many(examSubmissions),
+}));
+
+export const questionsRelations = relations(questions, ({ one }) => ({
+  exam: one(exams, {
+    fields: [questions.exam_id],
+    references: [exams.id],
+  }),
+}));
+
+export const examSubmissionsRelations = relations(examSubmissions, ({ one }) => ({
+  exam: one(exams, {
+    fields: [examSubmissions.exam_id],
+    references: [exams.id],
+  }),
+  student: one(users, {
+    fields: [examSubmissions.student_id],
+    references: [users.id],
+  }),
+  grader: one(users, {
+    fields: [examSubmissions.graded_by],
+    references: [users.id],
+  }),
+}));
 
 // Schema types
 export type UpsertUser = typeof users.$inferInsert;
@@ -118,47 +172,44 @@ export type User = typeof users.$inferSelect;
 
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
   id: true,
-  createdAt: true,
+  created_at: true,
 });
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
 
 export const insertGallerySchema = createInsertSchema(gallery).omit({
   id: true,
-  createdAt: true,
+  created_at: true,
 });
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
 export type Gallery = typeof gallery.$inferSelect;
 
 export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
-  createdAt: true,
-  totalMarks: true,
+  created_at: true,
 });
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type Exam = typeof exams.$inferSelect;
 
 export const insertQuestionSchema = createInsertSchema(questions).omit({
   id: true,
-  createdAt: true,
+  created_at: true,
 });
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type Question = typeof questions.$inferSelect;
 
 export const insertExamSubmissionSchema = createInsertSchema(examSubmissions).omit({
   id: true,
-  submittedAt: true,
+  submitted_at: true,
   score: true,
-  totalMarks: true,
-  percentage: true,
-  gradedBy: true,
+  graded_by: true,
 });
 export type InsertExamSubmission = z.infer<typeof insertExamSubmissionSchema>;
 export type ExamSubmission = typeof examSubmissions.$inferSelect;
 
 export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({
   id: true,
-  createdAt: true,
+  created_at: true,
   status: true,
 });
 export type InsertEnrollment = z.infer<typeof insertEnrollmentSchema>;
@@ -166,7 +217,7 @@ export type Enrollment = typeof enrollments.$inferSelect;
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
-  createdAt: true,
+  created_at: true,
 });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
