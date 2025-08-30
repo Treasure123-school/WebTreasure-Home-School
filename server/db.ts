@@ -1,13 +1,3 @@
-// Temporary fix for missing pg types
-declare module 'pg' {
-  export class Pool {
-    constructor(config: any);
-    query(text: string, params?: any[]): Promise<any>;
-    connect(): Promise<any>;
-    end(): Promise<void>;
-  }
-}
-
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from './schema';
