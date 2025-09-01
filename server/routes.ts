@@ -21,13 +21,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let user = await storage.getUser("default-user-id");
       
       if (!user) {
-        // Create a default user for testing
+        // Create a default user for testing - MATCHING NEW SCHEMA
         user = await storage.upsertUser({
           id: "default-user-id",
           email: "test@example.com",
-          firstName: "Test",
-          lastName: "User", 
-          role: "admin"
+          fullName: "Test User", // Changed from firstName/lastName
+          roleId: 1, // Admin role ID
+          class: "JSS1" // Added class
         });
       }
       
@@ -68,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertAnnouncementSchema.partial().parse(req.body);
-      const announcement = await storage.updateAnnouncement(id, data);
+      const announcement = await storage.updateAnnouncement(Number(id), data);
       res.json(announcement);
     } catch (error) {
       console.error("Error updating announcement:", error);
@@ -79,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/announcements/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteAnnouncement(id);
+      await storage.deleteAnnouncement(Number(id));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting announcement:", error);
@@ -87,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ ADDED: Gallery routes (were missing!)
+  // Gallery routes
   app.get('/api/gallery', async (req, res) => {
     try {
       const images = await storage.getGalleryImages();
@@ -113,7 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/gallery/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteGalleryImage(id);
+      await storage.deleteGalleryImage(Number(id));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting gallery image:", error);
@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Exam routes
+  // Exam routes - FIXED to match new schema
   app.get('/api/exams', async (req: any, res) => {
     try {
       const user = await storage.getUser("default-user-id");
@@ -131,9 +131,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let exams: Exam[];
       
-      if (user.role === 'student' && user.className) {
-        exams = await storage.getActiveExamsByClass(user.className);
-      } else if (user.role === 'teacher' || user.role === 'admin') {
+      // Get role name from role ID
+      const adminRole = await storage.getUsersByRole("Admin");
+      const teacherRole = await storage.getUsersByRole("Teacher");
+      const studentRole = await storage.getUsersByRole("Student");
+      
+      const isAdmin = adminRole.some(u => u.id === user.id);
+      const isTeacher = teacherRole.some(u => u.id === user.id);
+      const isStudent = studentRole.some(u => u.id === user.id);
+      
+      if (isStudent && user.class) {
+        exams = await storage.getExamsByClass(user.class); // Changed from className to class
+      } else if (isTeacher || isAdmin) {
         exams = await storage.getExams();
       } else {
         exams = [];
@@ -149,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const exam = await storage.getExam(id);
+      const exam = await storage.getExam(Number(id));
       if (!exam) {
         return res.status(404).json({ message: "Exam not found" });
       }
@@ -176,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertExamSchema.partial().parse(req.body);
-      const exam = await storage.updateExam(id, data);
+      const exam = await storage.updateExam(Number(id), data);
       res.json(exam);
     } catch (error) {
       console.error("Error updating exam:", error);
@@ -187,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/exams/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteExam(id);
+      await storage.deleteExam(Number(id));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting exam:", error);
@@ -199,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:examId/questions', async (req, res) => {
     try {
       const { examId } = req.params;
-      const questions = await storage.getQuestionsByExam(examId);
+      const questions = await storage.getQuestionsByExam(Number(examId));
       res.json(questions);
     } catch (error) {
       console.error("Error fetching questions:", error);
@@ -210,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/exams/:examId/questions', async (req, res) => {
     try {
       const { examId } = req.params;
-      const data = insertQuestionSchema.parse({ ...req.body, examId });
+      const data = insertQuestionSchema.parse({ ...req.body, examId: Number(examId) });
       const question = await storage.createQuestion(data);
       res.json(question);
     } catch (error) {
@@ -223,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertQuestionSchema.partial().parse(req.body);
-      const question = await storage.updateQuestion(id, data);
+      const question = await storage.updateQuestion(Number(id), data);
       res.json(question);
     } catch (error) {
       console.error("Error updating question:", error);
@@ -234,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/questions/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      await storage.deleteQuestion(id);
+      await storage.deleteQuestion(Number(id));
       res.json({ success: true });
     } catch (error) {
       console.error("Error deleting question:", error);
@@ -257,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/submissions/exam/:examId', async (req, res) => {
     try {
       const { examId } = req.params;
-      const submissions = await storage.getSubmissionsByExam(examId);
+      const submissions = await storage.getSubmissionsByExam(Number(examId));
       res.json(submissions);
     } catch (error) {
       console.error("Error fetching exam submissions:", error);
@@ -268,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/submissions/:examId/:studentId', async (req, res) => {
     try {
       const { examId, studentId } = req.params;
-      const submission = await storage.getSubmission(examId, studentId);
+      const submission = await storage.getSubmission(Number(examId), studentId);
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
@@ -317,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { status } = z.object({ status: z.string() }).parse(req.body);
-      const enrollment = await storage.updateEnrollmentStatus(id, status);
+      const enrollment = await storage.updateEnrollmentStatus(Number(id), status);
       res.json(enrollment);
     } catch (error) {
       console.error("Error updating enrollment status:", error);
@@ -361,17 +370,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/users/:id/role', async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { role } = z.object({ role: z.string() }).parse(req.body);
-      const user = await storage.updateUserRole(id, role);
-      res.json(user);
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      res.status(500).json({ message: "Failed to update user role" });
-    }
-  });
+  // REMOVED: updateUserRole method doesn't exist in storage
+  // app.put('/api/users/:id/role', async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const { role } = z.object({ role: z.string() }).parse(req.body);
+  //     const user = await storage.updateUserRole(id, role);
+  //     res.json(user);
+  //   } catch (error) {
+  //     console.error("Error updating user role:", error);
+  //     res.status(500).json({ message: "Failed to update user role" });
+  //   }
+  // });
 
   const httpServer = createServer(app);
   return httpServer;
