@@ -81,18 +81,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUsersByRole(role: string): Promise<User[]> {
-    const [roleData] = await db.select().from(roles).where(eq(roles.role_name, role));
+    const [roleData] = await db.select().from(roles).where(eq(roles.roleName, role));
     if (!roleData) return [];
-    return await db.select().from(users).where(eq(users.role_id, roleData.id));
+    return await db.select().from(users).where(eq(users.roleId, roleData.id));
   }
 
   // Announcements
   async getAnnouncements(): Promise<Announcement[]> {
-    return await db.select().from(announcements).orderBy(desc(announcements.created_at));
+    return await db.select().from(announcements).orderBy(desc(announcements.createdAt));
   }
 
   async getAnnouncementsByAudience(audience: string): Promise<Announcement[]> {
-    return await db.select().from(announcements).where(eq(announcements.audience, audience)).orderBy(desc(announcements.created_at));
+    return await db.select().from(announcements).where(eq(announcements.audience, audience)).orderBy(desc(announcements.createdAt));
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
@@ -111,7 +111,7 @@ export class DatabaseStorage implements IStorage {
 
   // Gallery
   async getGalleryImages(): Promise<Gallery[]> {
-    return await db.select().from(gallery).orderBy(desc(gallery.created_at));
+    return await db.select().from(gallery).orderBy(desc(gallery.createdAt));
   }
 
   async createGalleryImage(galleryData: InsertGallery): Promise<Gallery> {
@@ -125,11 +125,11 @@ export class DatabaseStorage implements IStorage {
 
   // Exams
   async getExams(): Promise<Exam[]> {
-    return await db.select().from(exams).orderBy(desc(exams.created_at));
+    return await db.select().from(exams).orderBy(desc(exams.createdAt));
   }
 
   async getExamsByClass(className: string): Promise<Exam[]> {
-    return await db.select().from(exams).where(eq(exams.class, className)).orderBy(desc(exams.created_at));
+    return await db.select().from(exams).where(eq(exams.class, className)).orderBy(desc(exams.createdAt));
   }
 
   async getExam(id: number): Promise<Exam | undefined> {
@@ -153,7 +153,7 @@ export class DatabaseStorage implements IStorage {
 
   // Questions
   async getQuestionsByExam(examId: number): Promise<Question[]> {
-    return await db.select().from(questions).where(eq(questions.exam_id, examId));
+    return await db.select().from(questions).where(eq(questions.examId, examId));
   }
 
   async createQuestion(questionData: InsertQuestion): Promise<Question> {
@@ -172,15 +172,15 @@ export class DatabaseStorage implements IStorage {
 
   // Exam Submissions
   async getSubmissionsByStudent(studentId: string): Promise<ExamSubmission[]> {
-    return await db.select().from(examSubmissions).where(eq(examSubmissions.student_id, studentId)).orderBy(desc(examSubmissions.submitted_at));
+    return await db.select().from(examSubmissions).where(eq(examSubmissions.studentId, studentId)).orderBy(desc(examSubmissions.submittedAt));
   }
 
   async getSubmissionsByExam(examId: number): Promise<ExamSubmission[]> {
-    return await db.select().from(examSubmissions).where(eq(examSubmissions.exam_id, examId)).orderBy(desc(examSubmissions.submitted_at));
+    return await db.select().from(examSubmissions).where(eq(examSubmissions.examId, examId)).orderBy(desc(examSubmissions.submittedAt));
   }
 
   async getSubmission(examId: number, studentId: string): Promise<ExamSubmission | undefined> {
-    const [submission] = await db.select().from(examSubmissions).where(and(eq(examSubmissions.exam_id, examId), eq(examSubmissions.student_id, studentId)));
+    const [submission] = await db.select().from(examSubmissions).where(and(eq(examSubmissions.examId, examId), eq(examSubmissions.studentId, studentId)));
     return submission;
   }
 
@@ -191,7 +191,7 @@ export class DatabaseStorage implements IStorage {
 
   // Enrollments
   async getEnrollments(): Promise<Enrollment[]> {
-    return await db.select().from(enrollments).orderBy(desc(enrollments.created_at));
+    return await db.select().from(enrollments).orderBy(desc(enrollments.createdAt));
   }
 
   async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
@@ -206,7 +206,7 @@ export class DatabaseStorage implements IStorage {
 
   // Messages
   async getMessages(): Promise<Message[]> {
-    return await db.select().from(messages).orderBy(desc(messages.created_at));
+    return await db.select().from(messages).orderBy(desc(messages.createdAt));
   }
 
   async createMessage(messageData: InsertMessage): Promise<Message> {
