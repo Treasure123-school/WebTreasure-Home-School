@@ -1,14 +1,10 @@
-import { sql } from 'drizzle-orm';
 import {
-  index,
   jsonb,
   pgTable,
   timestamp,
   varchar,
   text,
   integer,
-  pgEnum,
-  boolean,
   uuid,
   serial,
   date,
@@ -32,8 +28,9 @@ export const roles = pgTable("roles", {
 });
 
 // User storage table - MATCHING YOUR DATABASE
+// REMOVED the circular reference to authUsers - this is the main fix!
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().references(() => authUsers.id, { onDelete: "cascade" }),
+  id: uuid("id").primaryKey(), // Removed reference to authUsers
   roleId: integer("role_id").references(() => roles.id).notNull(),
   fullName: text("full_name").notNull(),
   email: text("email").notNull().unique(),
@@ -42,12 +39,6 @@ export const users = pgTable("users", {
   dob: date("dob"),
   class: text("class"),
   createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Auth Users (reference to Supabase auth.users)
-export const authUsers = pgTable("auth.users", {
-  id: uuid("id").primaryKey(),
-  // Add other auth columns if needed
 });
 
 // Announcements - MATCHING YOUR DATABASE
@@ -205,7 +196,7 @@ export const questionsRelations = relations(questions, ({ one }) => ({
 export const examSubmissionsRelations = relations(examSubmissions, ({ one }) => ({
   exam: one(exams, {
     fields: [examSubmissions.examId],
-    references: [exams.id],
+  references: [exams.id],
   }),
   student: one(users, {
     fields: [examSubmissions.studentId],
