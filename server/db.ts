@@ -23,7 +23,6 @@ export const pool = new Pool({
   max: 2, // Small connection pool
   idleTimeoutMillis: 60000, // 60 seconds
   connectionTimeoutMillis: 15000, // ✅ 15 seconds (increased from 5)
-  query_timeout: 10000, // 10 second query timeout
 });
 
 // ✅ COMPREHENSIVE ERROR HANDLING
@@ -39,10 +38,11 @@ pool.on('remove', (client) => {
   console.log('🔌 Client removed from pool');
 });
 
-pool.on('error', (err, client) => {
+pool.on('error', (err: any) => {
   console.error('❌ Database pool error:', err.message);
-  console.error('Error code:', err.code);
-  console.error('Error stack:', err.stack);
+  if (err.code) {
+    console.error('Error code:', err.code);
+  }
 });
 
 // ✅ TEST CONNECTION ON STARTUP
@@ -58,8 +58,6 @@ async function testDatabaseConnection() {
   } catch (error: any) {
     console.error('❌ Database connection failed:');
     console.error('Error message:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Full error:', error);
     
     // ✅ PROVIDE SPECIFIC TROUBLESHOOTING TIPS
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
@@ -68,6 +66,8 @@ async function testDatabaseConnection() {
       console.log('2. Ensure "Allow all IP addresses" is enabled');
       console.log('3. Verify your database password is correct');
       console.log('4. Check if Supabase project is active and not suspended');
+    } else {
+      console.log('\n🔧 Check your Supabase database settings and connection string');
     }
   } finally {
     if (client) {
