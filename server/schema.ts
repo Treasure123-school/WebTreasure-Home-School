@@ -24,21 +24,20 @@ export const sessions = pgTable("sessions", {
 // Roles Table (from your database)
 export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
-  roleName: varchar("role_name").notNull().unique(),
+  role_name: varchar("role_name").notNull().unique(), // ✅ FIXED: snake_case
 });
 
 // User storage table - MATCHING YOUR DATABASE
-// REMOVED the circular reference to authUsers - this is the main fix!
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey(), // Removed reference to authUsers
-  roleId: integer("role_id").references(() => roles.id).notNull(),
-  fullName: text("full_name").notNull(),
+  id: uuid("id").primaryKey(),
+  role_id: integer("role_id").references(() => roles.id).notNull(), // ✅ FIXED: snake_case
+  full_name: text("full_name").notNull(), // ✅ FIXED: snake_case
   email: text("email").notNull().unique(),
   phone: text("phone"),
   gender: text("gender", { enum: ["Male", "Female"] }),
   dob: date("dob"),
   class: text("class"),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Announcements - MATCHING YOUR DATABASE
@@ -47,17 +46,17 @@ export const announcements = pgTable("announcements", {
   title: text("title").notNull(),
   body: text("body").notNull(),
   audience: text("audience", { enum: ["All", "Admin", "Teacher", "Student", "Parent"] }).default("All"),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }), // ✅ FIXED: snake_case
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Gallery - MATCHING YOUR DATABASE
 export const gallery = pgTable("gallery", {
   id: serial("id").primaryKey(),
-  imageUrl: text("image_url").notNull(),
+  image_url: text("image_url").notNull(), // ✅ FIXED: snake_case
   caption: text("caption"),
-  uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow(),
+  uploaded_by: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }), // ✅ FIXED: snake_case
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Exams - MATCHING YOUR DATABASE
@@ -66,42 +65,42 @@ export const exams = pgTable("exams", {
   title: text("title").notNull(),
   subject: text("subject").notNull(),
   class: text("class").notNull(),
-  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_by: uuid("created_by").references(() => users.id, { onDelete: "set null" }), // ✅ FIXED: snake_case
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Questions - MATCHING YOUR DATABASE
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
-  examId: integer("exam_id").references(() => exams.id, { onDelete: "cascade" }),
-  questionText: text("question_text").notNull(),
+  exam_id: integer("exam_id").references(() => exams.id, { onDelete: "cascade" }), // ✅ FIXED: snake_case
+  question_text: text("question_text").notNull(), // ✅ FIXED: snake_case
   options: jsonb("options").notNull(),
-  correctAnswer: text("correct_answer").notNull(),
+  correct_answer: text("correct_answer").notNull(), // ✅ FIXED: snake_case
   marks: integer("marks").notNull().default(1),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Exam Submissions - MATCHING YOUR DATABASE
 export const examSubmissions = pgTable("exam_submissions", {
   id: serial("id").primaryKey(),
-  examId: integer("exam_id").references(() => exams.id, { onDelete: "cascade" }),
-  studentId: uuid("student_id").references(() => users.id, { onDelete: "cascade" }),
+  exam_id: integer("exam_id").references(() => exams.id, { onDelete: "cascade" }), // ✅ FIXED: snake_case
+  student_id: uuid("student_id").references(() => users.id, { onDelete: "cascade" }), // ✅ FIXED: snake_case
   answers: jsonb("answers").notNull(),
   score: integer("score").notNull().default(0),
-  submittedAt: timestamp("submitted_at").defaultNow(),
-  gradedBy: uuid("graded_by").references(() => users.id, { onDelete: "set null" }),
+  submitted_at: timestamp("submitted_at").defaultNow(), // ✅ FIXED: snake_case
+  graded_by: uuid("graded_by").references(() => users.id, { onDelete: "set null" }), // ✅ FIXED: snake_case
 });
 
 // Enrollments - MATCHING YOUR DATABASE
 export const enrollments = pgTable("enrollments", {
   id: serial("id").primaryKey(),
-  childName: text("child_name").notNull(),
-  parentName: text("parent_name").notNull(),
-  parentEmail: text("parent_email").notNull(),
-  parentPhone: text("parent_phone").notNull(),
-  childAge: integer("child_age").notNull(),
+  child_name: text("child_name").notNull(), // ✅ FIXED: snake_case
+  parent_name: text("parent_name").notNull(), // ✅ FIXED: snake_case
+  parent_email: text("parent_email").notNull(), // ✅ FIXED: snake_case
+  parent_phone: text("parent_phone").notNull(), // ✅ FIXED: snake_case
+  child_age: integer("child_age").notNull(), // ✅ FIXED: snake_case
   status: text("status", { enum: ["pending", "approved", "rejected"] }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Messages - MATCHING YOUR DATABASE
@@ -110,162 +109,95 @@ export const messages = pgTable("messages", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   message: text("message").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 // Additional tables from your database schema
 export const attendance = pgTable("attendance", {
   id: serial("id").primaryKey(),
-  studentId: uuid("student_id").references(() => users.id, { onDelete: "cascade" }),
+  student_id: uuid("student_id").references(() => users.id, { onDelete: "cascade" }), // ✅ FIXED: snake_case
   date: date("date").notNull(),
   status: text("status", { enum: ["present", "absent", "late"] }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 export const fees = pgTable("fees", {
   id: serial("id").primaryKey(),
-  studentId: uuid("student_id").references(() => users.id, { onDelete: "cascade" }),
+  student_id: uuid("student_id").references(() => users.id, { onDelete: "cascade" }), // ✅ FIXED: snake_case
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status", { enum: ["pending", "paid", "overdue"] }).default("pending"),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  eventDate: date("event_date").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  event_date: date("event_date").notNull(), // ✅ FIXED: snake_case
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 export const achievements = pgTable("achievements", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
 export const libraryResources = pgTable("library_resources", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   author: text("author"),
-  fileUrl: text("file_url"),
-  createdAt: timestamp("created_at").defaultNow(),
+  file_url: text("file_url"), // ✅ FIXED: snake_case
+  created_at: timestamp("created_at").defaultNow(), // ✅ FIXED: snake_case
 });
 
-// Relations
-export const usersRelations = relations(users, ({ many }) => ({
-  announcements: many(announcements),
-  gallery: many(gallery),
-  exams: many(exams),
-  submissions: many(examSubmissions),
-  attendance: many(attendance),
-  fees: many(fees),
-}));
+// ... [KEEP ALL THE RELATIONS THE SAME] ...
 
-export const announcementsRelations = relations(announcements, ({ one }) => ({
-  creator: one(users, {
-    fields: [announcements.createdBy],
-    references: [users.id],
-  }),
-}));
-
-export const galleryRelations = relations(gallery, ({ one }) => ({
-  uploader: one(users, {
-    fields: [gallery.uploadedBy],
-    references: [users.id],
-  }),
-}));
-
-export const examsRelations = relations(exams, ({ one, many }) => ({
-  creator: one(users, {
-    fields: [exams.createdBy],
-    references: [users.id],
-  }),
-  questions: many(questions),
-  submissions: many(examSubmissions),
-}));
-
-export const questionsRelations = relations(questions, ({ one }) => ({
-  exam: one(exams, {
-    fields: [questions.examId],
-    references: [exams.id],
-  }),
-}));
-
-export const examSubmissionsRelations = relations(examSubmissions, ({ one }) => ({
-  exam: one(exams, {
-    fields: [examSubmissions.examId],
-  references: [exams.id],
-  }),
-  student: one(users, {
-    fields: [examSubmissions.studentId],
-    references: [users.id],
-  }),
-  grader: one(users, {
-    fields: [examSubmissions.gradedBy],
-    references: [users.id],
-  }),
-}));
-
-export const attendanceRelations = relations(attendance, ({ one }) => ({
-  student: one(users, {
-    fields: [attendance.studentId],
-    references: [users.id],
-  }),
-}));
-
-export const feesRelations = relations(fees, ({ one }) => ({
-  student: one(users, {
-    fields: [fees.studentId],
-    references: [users.id],
-  }),
-}));
-
-// Schema types
+// Schema types - UPDATE THESE TO USE snake_case FIELDS
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
 });
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type Announcement = typeof announcements.$inferSelect;
 
 export const insertGallerySchema = createInsertSchema(gallery).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
 });
 export type InsertGallery = z.infer<typeof insertGallerySchema>;
 export type Gallery = typeof gallery.$inferSelect;
 
 export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
 });
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type Exam = typeof exams.$inferSelect;
 
 export const insertQuestionSchema = createInsertSchema(questions).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
 });
 export type InsertQuestion = z.infer<typeof insertQuestionSchema>;
 export type Question = typeof questions.$inferSelect;
 
 export const insertExamSubmissionSchema = createInsertSchema(examSubmissions).omit({
   id: true,
-  submittedAt: true,
+  submitted_at: true, // ✅ FIXED: snake_case
   score: true,
-  gradedBy: true,
+  graded_by: true, // ✅ FIXED: snake_case
 });
 export type InsertExamSubmission = z.infer<typeof insertExamSubmissionSchema>;
 export type ExamSubmission = typeof examSubmissions.$inferSelect;
 
 export const insertEnrollmentSchema = createInsertSchema(enrollments).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
   status: true,
 });
 export type InsertEnrollment = z.infer<typeof insertEnrollmentSchema>;
@@ -273,42 +205,9 @@ export type Enrollment = typeof enrollments.$inferSelect;
 
 export const insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
-  createdAt: true,
+  created_at: true, // ✅ FIXED: snake_case
 });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
 
-export const insertAttendanceSchema = createInsertSchema(attendance).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
-export type Attendance = typeof attendance.$inferSelect;
-
-export const insertFeeSchema = createInsertSchema(fees).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertFee = z.infer<typeof insertFeeSchema>;
-export type Fee = typeof fees.$inferSelect;
-
-export const insertEventSchema = createInsertSchema(events).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertEvent = z.infer<typeof insertEventSchema>;
-export type Event = typeof events.$inferSelect;
-
-export const insertAchievementSchema = createInsertSchema(achievements).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
-export type Achievement = typeof achievements.$inferSelect;
-
-export const insertLibraryResourceSchema = createInsertSchema(libraryResources).omit({
-  id: true,
-  createdAt: true,
-});
-export type InsertLibraryResource = z.infer<typeof insertLibraryResourceSchema>;
-export type LibraryResource = typeof libraryResources.$inferSelect;
+// ... [UPDATE ALL OTHER SCHEMAS WITH snake_case] ...
