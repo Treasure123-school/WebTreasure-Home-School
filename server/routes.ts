@@ -25,9 +25,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user = await storage.upsertUser({
           id: "default-user-id",
           email: "test@example.com",
-          fullName: "Test User", // Changed from firstName/lastName
-          roleId: 1, // Admin role ID
-          class: "JSS1" // Added class
+          full_name: "Test User", // ✅ snake_case
+          role_id: 1, // ✅ snake_case
+          class: "JSS1"
         });
       }
       
