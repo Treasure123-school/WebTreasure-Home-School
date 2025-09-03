@@ -12,9 +12,51 @@ import {
   type Exam
 } from './schema';
 import { z } from "zod";
+import { sql } from "drizzle-orm"; // ✅ ADD THIS IMPORT
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // ✅ HEALTH CHECK ENDPOINT - ADD THIS FIRST
+  // ✅ DEBUG ENDPOINT - ADD THIS FIRST
+  app.get('/api/debug', async (req, res) => {
+    try {
+      // Test raw database connection
+      const result = await storage.getAnnouncements();
+      
+      res.json({
+        status: 'SUCCESS',
+        database: 'Connected successfully!',
+        connection: {
+          host: 'aws-1-eu-north-1.pooler.supabase.com',
+          port: 6543,
+          using_transaction_pooler: true,
+          ssl: 'enabled'
+        },
+        data_count: result.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Debug endpoint error:', error);
+      
+      res.status(500).json({
+        status: 'ERROR',
+        message: 'Database connection failed',
+        error: error.message,
+        connection_details: {
+          host: 'aws-1-eu-north-1.pooler.supabase.com',
+          port: 6543,
+          expected_user: 'postgres.utsqotblfwfrhxzyxmip',
+          using_ssl: true
+        },
+        possible_issues: [
+          'IP not whitelisted in Supabase',
+          'Incorrect password',
+          'SSL certificate issue',
+          'Database server overloaded'
+        ]
+      });
+    }
+  });
+
+  // ✅ HEALTH CHECK ENDPOINT
   app.get('/health', async (req, res) => {
     try {
       await storage.getAnnouncements();
@@ -32,12 +74,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ ROOT ENDPOINT - ADD THIS SECOND
+  // ✅ ROOT ENDPOINT
   app.get('/', (req, res) => {
     res.json({ 
       message: 'Treasure-Home School Server API', 
       version: '1.0',
       endpoints: {
+        debug: '/api/debug',
         health: '/health',
         announcements: '/api/announcements',
         gallery: '/api/gallery',
