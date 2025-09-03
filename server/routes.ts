@@ -17,14 +17,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ HEALTH CHECK ENDPOINT - ADD THIS FIRST
   app.get('/health', async (req, res) => {
     try {
-      // Test database connection
       await storage.getAnnouncements();
       res.json({ 
         status: 'OK', 
         message: 'Server and database are connected',
         timestamp: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ 
         status: 'ERROR', 
         message: 'Database connection failed',
@@ -52,7 +51,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      // ✅ SIMPLIFIED: Return demo user without database call
       res.json({
         id: "default-user-id",
         email: "demo@school.com",
@@ -61,7 +59,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         class: "JSS1",
         created_at: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in auth:", error);
       res.status(500).json({ message: "Auth service temporarily unavailable" });
     }
@@ -75,9 +73,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? await storage.getAnnouncementsByAudience(audience as string)
         : await storage.getAnnouncements();
       res.json(announcements);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching announcements:", error);
-      // ✅ FALLBACK: Return sample announcements if database fails
       res.json([
         {
           id: 1,
@@ -97,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertAnnouncementSchema.parse({ ...req.body, created_by: userId });
       const announcement = await storage.createAnnouncement(data);
       res.json(announcement);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating announcement:", error);
       res.status(500).json({ message: "Failed to create announcement" });
     }
@@ -109,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertAnnouncementSchema.partial().parse(req.body);
       const announcement = await storage.updateAnnouncement(Number(id), data);
       res.json(announcement);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating announcement:", error);
       res.status(500).json({ message: "Failed to update announcement" });
     }
@@ -120,20 +117,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.deleteAnnouncement(Number(id));
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting announcement:", error);
       res.status(500).json({ message: "Failed to delete announcement" });
     }
   });
 
-  // Gallery routes - ✅ SIMPLIFIED WITH FALLBACK
+  // Gallery routes
   app.get('/api/gallery', async (req, res) => {
     try {
       const images = await storage.getGalleryImages();
       res.json(images);
-    } catch (error) {
+    } catch (error: any) {
       console.log('Using fallback gallery data');
-      // ✅ FALLBACK: Return sample gallery images if database fails
       res.json([
         {
           id: 1,
@@ -152,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertGallerySchema.parse({ ...req.body, uploaded_by: userId });
       const image = await storage.createGalleryImage(data);
       res.json(image);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating gallery image:", error);
       res.status(500).json({ message: "Failed to create gallery image" });
     }
@@ -163,18 +159,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.deleteGalleryImage(Number(id));
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting gallery image:", error);
       res.status(500).json({ message: "Failed to delete gallery image" });
     }
   });
 
-  // Exam routes - ✅ SIMPLIFIED
+  // Exam routes
   app.get('/api/exams', async (req: any, res) => {
     try {
       const exams = await storage.getExams();
       res.json(exams);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching exams:", error);
       res.status(500).json({ message: "Failed to fetch exams" });
     }
@@ -188,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Exam not found" });
       }
       res.json(exam);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching exam:", error);
       res.status(500).json({ message: "Failed to fetch exam" });
     }
@@ -200,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertExamSchema.parse({ ...req.body, created_by: userId });
       const exam = await storage.createExam(data);
       res.json(exam);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating exam:", error);
       res.status(500).json({ message: "Failed to create exam" });
     }
@@ -212,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertExamSchema.partial().parse(req.body);
       const exam = await storage.updateExam(Number(id), data);
       res.json(exam);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating exam:", error);
       res.status(500).json({ message: "Failed to update exam" });
     }
@@ -223,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.deleteExam(Number(id));
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting exam:", error);
       res.status(500).json({ message: "Failed to delete exam" });
     }
@@ -235,7 +231,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { examId } = req.params;
       const questions = await storage.getQuestionsByExam(Number(examId));
       res.json(questions);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching questions:", error);
       res.status(500).json({ message: "Failed to fetch questions" });
     }
@@ -247,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertQuestionSchema.parse({ ...req.body, exam_id: Number(examId) });
       const question = await storage.createQuestion(data);
       res.json(question);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating question:", error);
       res.status(500).json({ message: "Failed to create question" });
     }
@@ -259,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertQuestionSchema.partial().parse(req.body);
       const question = await storage.updateQuestion(Number(id), data);
       res.json(question);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating question:", error);
       res.status(500).json({ message: "Failed to update question" });
     }
@@ -270,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       await storage.deleteQuestion(Number(id));
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting question:", error);
       res.status(500).json({ message: "Failed to delete question" });
     }
@@ -282,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { studentId } = req.params;
       const submissions = await storage.getSubmissionsByStudent(studentId);
       res.json(submissions);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching student submissions:", error);
       res.status(500).json({ message: "Failed to fetch submissions" });
     }
@@ -293,7 +289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { examId } = req.params;
       const submissions = await storage.getSubmissionsByExam(Number(examId));
       res.json(submissions);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching exam submissions:", error);
       res.status(500).json({ message: "Failed to fetch submissions" });
     }
@@ -307,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Submission not found" });
       }
       res.json(submission);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching submission:", error);
       res.status(500).json({ message: "Failed to fetch submission" });
     }
@@ -319,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertExamSubmissionSchema.parse({ ...req.body, student_id: userId });
       const submission = await storage.createSubmission(data);
       res.json(submission);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating submission:", error);
       res.status(500).json({ message: "Failed to create submission" });
     }
@@ -330,7 +326,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const enrollments = await storage.getEnrollments();
       res.json(enrollments);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching enrollments:", error);
       res.status(500).json({ message: "Failed to fetch enrollments" });
     }
@@ -341,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertEnrollmentSchema.parse(req.body);
       const enrollment = await storage.createEnrollment(data);
       res.json(enrollment);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating enrollment:", error);
       res.status(500).json({ message: "Failed to create enrollment" });
     }
@@ -353,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { status } = z.object({ status: z.string() }).parse(req.body);
       const enrollment = await storage.updateEnrollmentStatus(Number(id), status);
       res.json(enrollment);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating enrollment status:", error);
       res.status(500).json({ message: "Failed to update enrollment status" });
     }
@@ -364,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const messages = await storage.getMessages();
       res.json(messages);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching messages:", error);
       res.status(500).json({ message: "Failed to fetch messages" });
     }
@@ -375,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = insertMessageSchema.parse(req.body);
       const message = await storage.createMessage(data);
       res.json(message);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating message:", error);
       res.status(500).json({ message: "Failed to create message" });
     }
@@ -389,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? await storage.getUsersByRole(role as string)
         : [];
       res.json(users);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
     }
