@@ -96,12 +96,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement> {
-    const [created] = await db.insert(announcements).values(announcement).returning();
+    const dbAnnouncement = {
+      title: announcement.title,
+      body: announcement.body,
+      audience: announcement.audience,
+      created_by: announcement.createdBy,
+    };
+    const [created] = await db.insert(announcements).values(dbAnnouncement).returning();
     return created;
   }
 
   async updateAnnouncement(id: number, announcement: Partial<InsertAnnouncement>): Promise<Announcement> {
-    const [updated] = await db.update(announcements).set(announcement).where(eq(announcements.id, id)).returning();
+    const dbAnnouncement = {
+      title: announcement.title,
+      body: announcement.body,
+      audience: announcement.audience,
+      created_by: announcement.createdBy,
+    };
+    const [updated] = await db.update(announcements).set(dbAnnouncement).where(eq(announcements.id, id)).returning();
     return updated;
   }
 
@@ -115,7 +127,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createGalleryImage(galleryData: InsertGallery): Promise<Gallery> {
-    const [created] = await db.insert(gallery).values(galleryData).returning();
+    const dbGalleryData = {
+      image_url: galleryData.imageUrl,
+      caption: galleryData.caption,
+      uploaded_by: galleryData.uploadedBy,
+    };
+    const [created] = await db.insert(gallery).values(dbGalleryData).returning();
     return created;
   }
 
@@ -138,12 +155,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createExam(examData: InsertExam): Promise<Exam> {
-    const [created] = await db.insert(exams).values(examData).returning();
+    const dbExamData = {
+      title: examData.title,
+      subject: examData.subject,
+      class: examData.class,
+      created_by: examData.createdBy,
+    };
+    const [created] = await db.insert(exams).values(dbExamData).returning();
     return created;
   }
 
   async updateExam(id: number, examData: Partial<InsertExam>): Promise<Exam> {
-    const [updated] = await db.update(exams).set(examData).where(eq(exams.id, id)).returning();
+    const dbExamData = {
+      title: examData.title,
+      subject: examData.subject,
+      class: examData.class,
+      created_by: examData.createdBy,
+    };
+    const [updated] = await db.update(exams).set(dbExamData).where(eq(exams.id, id)).returning();
     return updated;
   }
 
@@ -157,12 +186,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createQuestion(questionData: InsertQuestion): Promise<Question> {
-    const [created] = await db.insert(questions).values(questionData).returning();
+    const dbQuestionData = {
+      exam_id: questionData.examId,
+      question_text: questionData.questionText,
+      options: questionData.options,
+      correct_answer: questionData.correctAnswer,
+      marks: questionData.marks,
+    };
+    const [created] = await db.insert(questions).values(dbQuestionData).returning();
     return created;
   }
 
   async updateQuestion(id: number, questionData: Partial<InsertQuestion>): Promise<Question> {
-    const [updated] = await db.update(questions).set(questionData).where(eq(questions.id, id)).returning();
+    const dbQuestionData = {
+      exam_id: questionData.examId,
+      question_text: questionData.questionText,
+      options: questionData.options,
+      correct_answer: questionData.correctAnswer,
+      marks: questionData.marks,
+    };
+    const [updated] = await db.update(questions).set(dbQuestionData).where(eq(questions.id, id)).returning();
     return updated;
   }
 
@@ -185,7 +228,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSubmission(submissionData: InsertExamSubmission): Promise<ExamSubmission> {
-    const [created] = await db.insert(examSubmissions).values(submissionData).returning();
+    const dbSubmissionData = {
+      exam_id: submissionData.examId,
+      student_id: submissionData.studentId,
+      answers: submissionData.answers,
+      score: submissionData.score,
+      graded_by: submissionData.gradedBy,
+    };
+    const [created] = await db.insert(examSubmissions).values(dbSubmissionData).returning();
     return created;
   }
 
@@ -195,12 +245,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
-    const [created] = await db.insert(enrollments).values(enrollmentData).returning();
+    const dbEnrollmentData = {
+      child_name: enrollmentData.childName,
+      parent_name: enrollmentData.parentName,
+      parent_email: enrollmentData.parentEmail,
+      parent_phone: enrollmentData.parentPhone,
+      child_age: enrollmentData.childAge,
+      status: enrollmentData.status,
+    };
+    const [created] = await db.insert(enrollments).values(dbEnrollmentData).returning();
     return created;
   }
 
   async updateEnrollmentStatus(id: number, status: string): Promise<Enrollment> {
-    const [updated] = await db.update(enrollments).set({ status }).where(eq(enrollments.id, id)).returning();
+    const validStatus = status as 'pending' | 'approved' | 'rejected';
+    const [updated] = await db.update(enrollments).set({ status: validStatus }).where(eq(enrollments.id, id)).returning();
     return updated;
   }
 
@@ -210,7 +269,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMessage(messageData: InsertMessage): Promise<Message> {
-    const [created] = await db.insert(messages).values(messageData).returning();
+    const dbMessageData = {
+      name: messageData.name,
+      email: messageData.email,
+      message: messageData.message,
+    };
+    const [created] = await db.insert(messages).values(dbMessageData).returning();
     return created;
   }
 }
