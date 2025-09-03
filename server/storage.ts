@@ -224,18 +224,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
-    // Convert to ensure proper types
-    const dbEnrollmentData = {
-      child_name: String(enrollmentData.child_name),
-      parent_name: String(enrollmentData.parent_name),
-      parent_email: String(enrollmentData.parent_email),
-      parent_phone: String(enrollmentData.parent_phone),
-      child_age: Number(enrollmentData.child_age),
-      status: enrollmentData.status || 'pending',
-    };
-    const [created] = await db.insert(enrollments).values(dbEnrollmentData).returning();
-    return created;
-  }
+  async createEnrollment(enrollmentData: InsertEnrollment): Promise<Enrollment> {
+  const dbEnrollmentData = {
+    child_name: String(enrollmentData.child_name),
+    parent_name: String(enrollmentData.parent_name),
+    parent_email: String(enrollmentData.parent_email),
+    parent_phone: String(enrollmentData.parent_phone),
+    child_age: Number(enrollmentData.child_age),
+    status: 'pending' as const, // ✅ Add status field with default value
+  };
+  const [created] = await db.insert(enrollments).values(dbEnrollmentData).returning();
+  return created;
+}
 
   async updateEnrollmentStatus(id: number, status: string): Promise<Enrollment> {
     const validStatus = status as 'pending' | 'approved' | 'rejected';
