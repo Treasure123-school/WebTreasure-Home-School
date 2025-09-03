@@ -1,5 +1,4 @@
 import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +26,9 @@ import TeacherExams from "@/pages/teacher/Exams";
 import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
 
+// Add this - you might need to import queryClient differently
+import { queryClient } from "./lib/queryClient";
+
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
 
@@ -38,6 +40,28 @@ function Router() {
     );
   }
 
+  // FIX: Check if useAuth might be returning undefined
+  if (!user) {
+    return <Landing />;
+  }
+
+  // FIX: Map role_id to role names (since your DB uses IDs but code expects strings)
+  const getUserRole = () => {
+    if (!user.roleId) return null;
+    
+    // Map role IDs to role names based on your seed data
+    const roleMap: Record<number, string> = {
+      1: 'admin',
+      2: 'teacher', 
+      3: 'student',
+      4: 'parent'
+    };
+    
+    return roleMap[user.roleId] || null;
+  };
+
+  const userRole = getUserRole();
+
   return (
     <Switch>
       {!isAuthenticated ? (
@@ -47,7 +71,7 @@ function Router() {
           <Route path="/" component={Home} />
           
           {/* Admin Routes */}
-          {user?.role === 'admin' && (
+          {userRole === 'admin' && (
             <>
               <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/users" component={AdminUsers} />
@@ -59,7 +83,7 @@ function Router() {
           )}
           
           {/* Teacher Routes */}
-          {user?.role === 'teacher' && (
+          {userRole === 'teacher' && (
             <>
               <Route path="/teacher" component={TeacherDashboard} />
               <Route path="/teacher/exams" component={TeacherExams} />
@@ -67,7 +91,7 @@ function Router() {
           )}
           
           {/* Student Routes */}
-          {user?.role === 'student' && (
+          {userRole === 'student' && (
             <>
               <Route path="/student" component={StudentDashboard} />
               <Route path="/student/results" component={StudentResults} />
@@ -76,7 +100,7 @@ function Router() {
           )}
           
           {/* Parent Routes */}
-          {user?.role === 'parent' && (
+          {userRole === 'parent' && (
             <>
               <Route path="/parent" component={ParentDashboard} />
             </>
