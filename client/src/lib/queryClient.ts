@@ -14,7 +14,6 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // ✅ FIXED: Add slash between base URL and path if missing
   const fullUrl = url.startsWith('http') ? url : 
                  `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
   
@@ -35,7 +34,6 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // ✅ FIXED: Remove leading slashes and join properly
     const path = queryKey.filter(part => part !== '').join('/').replace(/^\/+/, '');
     const fullUrl = `${API_BASE_URL}/${path}`;
     
@@ -51,13 +49,14 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// ✅ CRITICAL FIX: Remove the default queryFn that was breaking auth
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
+      // ❌ REMOVED: queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      staleTime: 1000 * 60 * 5, // 5 minutes instead of Infinity
       retry: false,
     },
     mutations: {
