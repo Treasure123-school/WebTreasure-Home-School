@@ -9,6 +9,7 @@ import {
   serial,
   date,
   numeric,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -27,7 +28,26 @@ export const roles = pgTable("roles", {
   role_name: varchar("role_name").notNull().unique(),
 });
 
-// User storage table - MATCHING YOUR DATABASE
+// ===== AUTHENTICATION TABLES =====
+
+// Password authentication table
+export const passwords = pgTable("passwords", {
+  id: uuid("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  password_hash: text("password_hash").notNull(),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});
+
+// Password reset tokens
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: serial("id").primaryKey(),
+  user_id: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull(),
+  expires_at: timestamp("expires_at").notNull(),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+// ===== UPDATED USERS TABLE =====
 export const users = pgTable("users", {
   id: uuid("id").primaryKey(),
   role_id: integer("role_id").references(() => roles.id).notNull(),
@@ -37,7 +57,10 @@ export const users = pgTable("users", {
   gender: text("gender", { enum: ["Male", "Female"] }),
   dob: date("dob"),
   class: text("class"),
+  is_active: boolean("is_active").default(true), // ADDED
+  last_login: timestamp("last_login"), // ADDED
   created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(), // ADDED
 });
 
 // Announcements - MATCHING YOUR DATABASE
@@ -118,7 +141,7 @@ export const attendance = pgTable("attendance", {
   student_id: uuid("student_id").references(() => users.id, { onDelete: "cascade" }),
   date: date("date").notNull(),
   status: text("status", { enum: ["present", "absent", "late"] }).notNull(),
-  created_at: timestamp("created_at").defaultNow(),
+  created_at: timestamp("createdated_at").defaultNow(),
 });
 
 export const fees = pgTable("fees", {
@@ -152,7 +175,8 @@ export const libraryResources = pgTable("library_resources", {
   created_at: timestamp("created_at").defaultNow(),
 });
 
-// Relations (keep these the same as before)
+// ===== RELATIONS =====
+
 export const usersRelations = relations(users, ({ many }) => ({
   announcements: many(announcements),
   gallery: many(gallery),
@@ -160,6 +184,22 @@ export const usersRelations = relations(users, ({ many }) => ({
   submissions: many(examSubmissions),
   attendance: many(attendance),
   fees: many(fees),
+  passwords: many(passwords), // ADDED
+  passwordResetTokens: many(passwordResetTokens), // ADDED
+}));
+
+export const passwordsRelations = relations(passwords, ({ one }) => ({
+  user: one(users, {
+    fields: [passwords.id],
+    references: [users.id],
+  }),
+}));
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.user_id],
+    references: [users.id],
+  }),
 }));
 
 export const announcementsRelations = relations(announcements, ({ one }) => ({
@@ -221,9 +261,32 @@ export const feesRelations = relations(fees, ({ one }) => ({
   }),
 }));
 
-// Schema types with PROPER VALIDATION
+// ===== SCHEMA TYPES =====
+
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
+
+export type InsertPassword = typeof passwords.$inferInsert;
+export type Password = typeof passwords.$inferSelect;
+
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+
+export const insertPasswordSchema = createInsertSchema(passwords, {
+  password_hash: z.string().min(1),
+}).omit({
+  created_at: true,
+  updated_at: true,
+});
+
+export const insertPasswordResetTokenSchema = createInsertSchema(passwordResetTokens, {
+  user_id: z.string().uuid(),
+  token: z.string().min(1),
+  expires_at: z.date(),
+}).omit({
+  id: true,
+  created_at: true,
+});
 
 export const insertAnnouncementSchema = createInsertSchema(announcements, {
   title: z.string().min(1),
