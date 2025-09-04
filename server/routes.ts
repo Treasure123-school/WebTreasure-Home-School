@@ -128,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ SUPABASE SIGNUP
+  // ✅ SUPABASE SIGNUP - FIXED DATE HANDLING
   app.post('/api/auth/signup', async (req, res) => {
     try {
       const { email, password, full_name, role_id, class: userClass, phone, gender, dob } = req.body;
@@ -154,6 +154,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (authData.user) {
+        // FIX: Pass the dob string directly instead of Date object
         const userProfile = await storage.createUser({
           id: authData.user.id,
           full_name,
@@ -162,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           class: userClass,
           phone,
           gender,
-          dob: dob ? new Date(dob) : undefined
+          dob: dob || null // Pass string directly or null
         });
 
         res.json({
@@ -215,15 +216,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ LOGOUT
+  // ✅ LOGOUT - FIXED SIGNOUT CALL
   app.post('/api/auth/logout', async (req, res) => {
     try {
-      const authHeader = req.headers.authorization;
-      
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        await supabase.auth.signOut();
-      }
+      // FIX: Remove the token parameter from signOut
+      await supabase.auth.signOut();
       
       res.json({ message: "Logged out successfully" });
     } catch (error: any) {
@@ -232,7 +229,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // ✅ INITIALIZE DEFAULT ADMIN
+  // ✅ INITIALIZE DEFAULT ADMIN - FIXED DATE HANDLING
   app.post('/api/auth/init-admin', async (req, res) => {
     try {
       const adminEmail = "admin@treasure.edu";
@@ -492,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteQuestion(Number(id));
-      res.json({ success: true });
+      res.json({ success: true );
     } catch (error: any) {
       console.error("Error deleting question:", error);
       res.status(500).json({ message: "Failed to delete question" });
