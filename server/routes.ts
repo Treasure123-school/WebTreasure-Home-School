@@ -222,7 +222,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        await supabase.auth.signOut(token);
+        await supabase.auth.signOut();
       }
       
       res.json({ message: "Logged out successfully" });
