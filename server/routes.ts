@@ -489,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteQuestion(Number(id));
-      res.json({ success: true );
+      res.json({ success: true });
     } catch (error: any) {
       console.error("Error deleting question:", error);
       res.status(500).json({ message: "Failed to delete question" });
