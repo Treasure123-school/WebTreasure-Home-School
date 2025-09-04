@@ -77,7 +77,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gallery: '/api/gallery',
         exams: '/api/exams',
         enrollments: '/api/enrollments',
-        messages: '/api/messages'
+        messages: '/api/messages',
+        users: '/api/users/:id' // ADDED THIS
       }
     });
   });
@@ -213,6 +214,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // ✅ GET USER BY ID ENDPOINT - ADDED THIS
+  app.get('/api/users/:id', authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = await storage.getUserById(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error: any) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
