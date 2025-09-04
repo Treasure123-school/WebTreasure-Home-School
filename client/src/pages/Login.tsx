@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [, setLocation] = useLocation();
   const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,9 +20,10 @@ export default function Login() {
 
     try {
       await login(email, password);
-      setLocation('/');
+      // Let the auth state change handler in useAuth handle the navigation
+      // This ensures consistency and avoids race conditions
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -48,7 +47,7 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -57,6 +56,8 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="email"
+                className="w-full"
               />
             </div>
 
@@ -70,11 +71,25 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                autoComplete="current-password"
+                className="w-full"
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign in'}
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading}
+              size="lg"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Signing in...
+                </>
+              ) : (
+                'Sign in to Portal'
+              )}
             </Button>
           </form>
 
@@ -83,6 +98,9 @@ export default function Login() {
             <p className="text-blue-700 text-xs">
               <strong>Email:</strong> admin@treasure.edu<br />
               <strong>Password:</strong> admin123
+            </p>
+            <p className="text-blue-600 text-xs mt-2">
+              <strong>Note:</strong> You can change this password after first login
             </p>
           </div>
         </CardContent>
