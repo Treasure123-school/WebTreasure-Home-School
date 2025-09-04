@@ -8,50 +8,34 @@ import {
   insertQuestionSchema,
   insertExamSubmissionSchema,
   insertEnrollmentSchema,
-  insertMessageSchema,
-  type Exam
+  insertMessageSchema
 } from './schema';
 import { z } from "zod";
-import { sql } from "drizzle-orm"; // ✅ ADD THIS IMPORT
+import { sql } from "drizzle-orm";
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // ✅ DEBUG ENDPOINT - ADD THIS FIRST
+  // ✅ DEBUG ENDPOINT
   app.get('/api/debug', async (req, res) => {
     try {
-      // Test raw database connection
       const result = await storage.getAnnouncements();
-      
       res.json({
         status: 'SUCCESS',
         database: 'Connected successfully!',
-        connection: {
-          host: 'aws-1-eu-north-1.pooler.supabase.com',
-          port: 6543,
-          using_transaction_pooler: true,
-          ssl: 'enabled'
-        },
         data_count: result.length,
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
       console.error('Debug endpoint error:', error);
-      
       res.status(500).json({
         status: 'ERROR',
         message: 'Database connection failed',
-        error: error.message,
-        connection_details: {
-          host: 'aws-1-eu-north-1.pooler.supabase.com',
-          port: 6543,
-          expected_user: 'postgres.utsqotblfwfrhxzyxmip',
-          using_ssl: true
-        },
-        possible_issues: [
-          'IP not whitelisted in Supabase',
-          'Incorrect password',
-          'SSL certificate issue',
-          'Database server overloaded'
-        ]
+        error: error.message
       });
     }
   });
@@ -80,6 +64,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: 'Treasure-Home School Server API', 
       version: '1.0',
       endpoints: {
+        auth: {
+          login: 'POST /api/auth/login',
+          signup: 'POST /api/auth/signup',
+          me: 'GET /api/auth/me',
+          logout: 'POST /api/auth/logout',
+          initAdmin: 'POST /api/auth/init-admin'
+        },
         debug: '/api/debug',
         health: '/health',
         announcements: '/api/announcements',
@@ -91,22 +82,235 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Auth routes
-  app.get('/api/auth/user', async (req: any, res) => {
+  // ===== AUTHENTICATION ROUTES =====
+
+  // ✅ SUPABASE LOGIN
+  app.post('/api/auth/login', async (req, res) => {
     try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error("Supabase login error:", error);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      const userProfile = await storage.getUserById(data.user.id);
+      
+      if (!userProfile) {
+        return res.status(404).json({ message: "User profile not found" });
+      }
+
       res.json({
-        id: "default-user-id",
-        email: "demo@school.com",
-        full_name: "Demo User",
-        role_id: 1,
-        class: "JSS1",
-        created_at: new Date().toISOString()
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: userProfile.full_name,
+          role_id: userProfile.role_id,
+          class: userProfile.class,
+          phone: userProfile.phone,
+          gender: userProfile.gender,
+          dob: userProfile.dob
+        },
+        session: data.session
       });
     } catch (error: any) {
-      console.error("Error in auth:", error);
-      res.status(500).json({ message: "Auth service temporarily unavailable" });
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Login failed" });
     }
   });
+
+  // ✅ SUPABASE SIGNUP
+  app.post('/api/auth/signup', async (req, res) => {
+    try {
+      const { email, password, full_name, role_id, class: userClass, phone, gender, dob } = req.body;
+
+      if (!email || !password || !full_name || !role_id) {
+        return res.status(400).json({ message: "All required fields are missing" });
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name,
+            role_id
+          }
+        }
+      });
+
+      if (authError) {
+        console.error("Supabase signup error:", authError);
+        return res.status(400).json({ message: authError.message });
+      }
+
+      if (authData.user) {
+        const userProfile = await storage.createUser({
+          id: authData.user.id,
+          full_name,
+          email,
+          role_id,
+          class: userClass,
+          phone,
+          gender,
+          dob: dob ? new Date(dob) : undefined
+        });
+
+        res.json({
+          message: "User created successfully",
+          user: userProfile,
+          session: authData.session
+        });
+      }
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      res.status(500).json({ message: "Signup failed" });
+    }
+  });
+
+  // ✅ GET CURRENT USER
+  app.get('/api/auth/me', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "No token provided" });
+      }
+
+      const token = authHeader.substring(7);
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error || !user) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+
+      const userProfile = await storage.getUserById(user.id);
+      
+      if (!userProfile) {
+        return res.status(404).json({ message: "User profile not found" });
+      }
+
+      res.json({
+        id: user.id,
+        email: user.email,
+        full_name: userProfile.full_name,
+        role_id: userProfile.role_id,
+        class: userProfile.class,
+        phone: userProfile.phone,
+        gender: userProfile.gender,
+        dob: userProfile.dob
+      });
+    } catch (error: any) {
+      console.error("Get user error:", error);
+      res.status(500).json({ message: "Failed to get user" });
+    }
+  });
+
+  // ✅ LOGOUT
+  app.post('/api/auth/logout', async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        await supabase.auth.signOut(token);
+      }
+      
+      res.json({ message: "Logged out successfully" });
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
+  // ✅ INITIALIZE DEFAULT ADMIN
+  app.post('/api/auth/init-admin', async (req, res) => {
+    try {
+      const adminEmail = "admin@treasure.edu";
+      const adminPassword = "admin123";
+      const adminName = "System Administrator";
+
+      const existingAdmin = await storage.getUserByEmail(adminEmail);
+      if (existingAdmin) {
+        return res.json({ message: "Admin user already exists" });
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: adminEmail,
+        password: adminPassword,
+        options: {
+          data: {
+            full_name: adminName,
+            role_id: 1
+          }
+        }
+      });
+
+      if (authError) {
+        console.error("Admin creation error:", authError);
+        return res.status(400).json({ message: authError.message });
+      }
+
+      if (authData.user) {
+        await storage.createUser({
+          id: authData.user.id,
+          full_name: adminName,
+          email: adminEmail,
+          role_id: 1,
+          class: null,
+          phone: null,
+          gender: null,
+          dob: null
+        });
+
+        res.json({ 
+          message: "Default admin created successfully",
+          credentials: {
+            email: adminEmail,
+            password: adminPassword,
+            note: "Change this password after first login"
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error("Init admin error:", error);
+      res.status(500).json({ message: "Failed to initialize admin" });
+    }
+  });
+
+  // ✅ AUTHENTICATION MIDDLEWARE
+  const authenticateToken = async (req: any, res: any, next: any) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Access token required" });
+      }
+
+      const token = authHeader.substring(7);
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      
+      if (error || !user) {
+        return res.status(403).json({ message: "Invalid or expired token" });
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      return res.status(403).json({ message: "Authentication failed" });
+    }
+  };
+
+  // ===== PROTECTED ROUTES =====
 
   // Announcements routes
   app.get('/api/announcements', async (req, res) => {
@@ -118,23 +322,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(announcements);
     } catch (error: any) {
       console.error("Error fetching announcements:", error);
-      res.json([
-        {
-          id: 1,
-          title: "Welcome to Treasure-Home School",
-          body: "Our portal is now live!",
-          audience: "All",
-          created_by: null,
-          created_at: new Date().toISOString()
-        }
-      ]);
+      res.status(500).json({ message: "Failed to fetch announcements" });
     }
   });
 
-  app.post('/api/announcements', async (req: any, res) => {
+  app.post('/api/announcements', authenticateToken, async (req: any, res) => {
     try {
-      const userId = "default-user-id";
-      const data = insertAnnouncementSchema.parse({ ...req.body, created_by: userId });
+      const data = insertAnnouncementSchema.parse({ ...req.body, created_by: req.user.id });
       const announcement = await storage.createAnnouncement(data);
       res.json(announcement);
     } catch (error: any) {
@@ -143,7 +337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/announcements/:id', async (req, res) => {
+  app.put('/api/announcements/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const data = insertAnnouncementSchema.partial().parse(req.body);
@@ -155,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/announcements/:id', async (req, res) => {
+  app.delete('/api/announcements/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteAnnouncement(Number(id));
@@ -172,23 +366,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const images = await storage.getGalleryImages();
       res.json(images);
     } catch (error: any) {
-      console.log('Using fallback gallery data');
-      res.json([
-        {
-          id: 1,
-          image_url: "https://placehold.co/600x400/2563eb/white",
-          caption: "School Campus",
-          uploaded_by: null,
-          created_at: new Date().toISOString()
-        }
-      ]);
+      console.error("Error fetching gallery:", error);
+      res.status(500).json({ message: "Failed to fetch gallery" });
     }
   });
 
-  app.post('/api/gallery', async (req: any, res) => {
+  app.post('/api/gallery', authenticateToken, async (req: any, res) => {
     try {
-      const userId = "default-user-id";
-      const data = insertGallerySchema.parse({ ...req.body, uploaded_by: userId });
+      const data = insertGallerySchema.parse({ ...req.body, uploaded_by: req.user.id });
       const image = await storage.createGalleryImage(data);
       res.json(image);
     } catch (error: any) {
@@ -197,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/gallery/:id', async (req, res) => {
+  app.delete('/api/gallery/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteGalleryImage(Number(id));
@@ -233,10 +418,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/exams', async (req: any, res) => {
+  app.post('/api/exams', authenticateToken, async (req: any, res) => {
     try {
-      const userId = "default-user-id";
-      const data = insertExamSchema.parse({ ...req.body, created_by: userId });
+      const data = insertExamSchema.parse({ ...req.body, created_by: req.user.id });
       const exam = await storage.createExam(data);
       res.json(exam);
     } catch (error: any) {
@@ -245,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/exams/:id', async (req, res) => {
+  app.put('/api/exams/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const data = insertExamSchema.partial().parse(req.body);
@@ -257,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/exams/:id', async (req, res) => {
+  app.delete('/api/exams/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteExam(Number(id));
@@ -280,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/exams/:examId/questions', async (req, res) => {
+  app.post('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
     try {
       const { examId } = req.params;
       const data = insertQuestionSchema.parse({ ...req.body, exam_id: Number(examId) });
@@ -292,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/questions/:id', async (req, res) => {
+  app.put('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const data = insertQuestionSchema.partial().parse(req.body);
@@ -304,7 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/questions/:id', async (req, res) => {
+  app.delete('/api/questions/:id', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       await storage.deleteQuestion(Number(id));
@@ -316,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Exam submissions routes
-  app.get('/api/submissions/student/:studentId', async (req, res) => {
+  app.get('/api/submissions/student/:studentId', authenticateToken, async (req, res) => {
     try {
       const { studentId } = req.params;
       const submissions = await storage.getSubmissionsByStudent(studentId);
@@ -327,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/submissions/exam/:examId', async (req, res) => {
+  app.get('/api/submissions/exam/:examId', authenticateToken, async (req, res) => {
     try {
       const { examId } = req.params;
       const submissions = await storage.getSubmissionsByExam(Number(examId));
@@ -338,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/submissions/:examId/:studentId', async (req, res) => {
+  app.get('/api/submissions/:examId/:studentId', authenticateToken, async (req, res) => {
     try {
       const { examId, studentId } = req.params;
       const submission = await storage.getSubmission(Number(examId), studentId);
@@ -352,10 +536,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/submissions', async (req: any, res) => {
+  app.post('/api/submissions', authenticateToken, async (req: any, res) => {
     try {
-      const userId = "default-user-id";
-      const data = insertExamSubmissionSchema.parse({ ...req.body, student_id: userId });
+      const data = insertExamSubmissionSchema.parse({ ...req.body, student_id: req.user.id });
       const submission = await storage.createSubmission(data);
       res.json(submission);
     } catch (error: any) {
@@ -365,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enrollments routes
-  app.get('/api/enrollments', async (req, res) => {
+  app.get('/api/enrollments', authenticateToken, async (req, res) => {
     try {
       const enrollments = await storage.getEnrollments();
       res.json(enrollments);
@@ -386,7 +569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/enrollments/:id/status', async (req, res) => {
+  app.put('/api/enrollments/:id/status', authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = z.object({ status: z.string() }).parse(req.body);
@@ -399,7 +582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Messages routes
-  app.get('/api/messages', async (req, res) => {
+  app.get('/api/messages', authenticateToken, async (req, res) => {
     try {
       const messages = await storage.getMessages();
       res.json(messages);
@@ -421,7 +604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User management routes
-  app.get('/api/users', async (req, res) => {
+  app.get('/api/users', authenticateToken, async (req, res) => {
     try {
       const { role } = req.query;
       const users = role 
