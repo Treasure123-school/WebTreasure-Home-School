@@ -2,13 +2,13 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  // ✅ CORRECT PATHS for your specific folder structure
+  // ✅ CORRECTED PATHS - Remove "client/" prefix since config is in client directory
   content: [
-    "./client/index.html",
-    "./client/src/**/*.{js,jsx,ts,tsx}",
-    "./client/src/components/**/*.{js,jsx,ts,tsx}",
-    "./client/src/ui/**/*.{js,jsx,ts,tsx}",
-    "./client/src/pages/**/*.{js,jsx,ts,tsx}",
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
+    "./src/components/**/*.{js,jsx,ts,tsx}",
+    "./src/ui/**/*.{js,jsx,ts,tsx}",
+    "./src/pages/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
     extend: {
@@ -59,7 +59,7 @@ export default {
           "5": "var(--chart-5)",
         },
         sidebar: {
-          DEFAULT: "var(--sidebar-background)",
+          DEFAULT: "var(--sidebar)",
           foreground: "var(--sidebar-foreground)",
           primary: "var(--sidebar-primary)",
           "primary-foreground": "var(--sidebar-primary-foreground)",
