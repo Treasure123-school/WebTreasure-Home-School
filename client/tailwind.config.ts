@@ -2,8 +2,14 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  // ✅ FIXED CONTENT PATHS - removed "/client" prefix
-  content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
+  // ✅ CORRECT PATHS for your specific folder structure
+  content: [
+    "./client/index.html",
+    "./client/src/**/*.{js,jsx,ts,tsx}",
+    "./client/src/components/**/*.{js,jsx,ts,tsx}",
+    "./client/src/ui/**/*.{js,jsx,ts,tsx}",
+    "./client/src/pages/**/*.{js,jsx,ts,tsx}",
+  ],
   theme: {
     extend: {
       borderRadius: {
@@ -62,11 +68,6 @@ export default {
           border: "var(--sidebar-border)",
           ring: "var(--sidebar-ring)",
         },
-        // School specific colors
-        textPrimary: "var(--text-primary)",
-        textSecondary: "var(--text-secondary)",
-        surface: "var(--surface)",
-        backgroundSurface: "var(--background-surface)",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
