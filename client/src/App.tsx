@@ -11,6 +11,7 @@ import TeacherDashboard from "@/pages/teacher-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import ParentDashboard from "@/pages/parent-dashboard";
 import ExamInterface from "@/pages/exam-interface";
+import Login from "@/pages/Login"; // ADD THIS IMPORT
 
 // Admin pages
 import AdminUsers from "@/pages/admin/Users";
@@ -40,38 +41,23 @@ function Router() {
     );
   }
 
-  // FIX: Check if useAuth might be returning undefined
-  if (!user) {
-    return <Landing />;
-  }
-
-  // FIX: Map role_id to role names (since your DB uses IDs but code expects strings)
-  const getUserRole = () => {
-    if (!user.roleId) return null;
-    
-    // Map role IDs to role names based on your seed data
-    const roleMap: Record<number, string> = {
-      1: 'admin',
-      2: 'teacher', 
-      3: 'student',
-      4: 'parent'
-    };
-    
-    return roleMap[user.roleId] || null;
-  };
-
-  const userRole = getUserRole();
-
   return (
     <Switch>
+      {/* ADD LOGIN ROUTE - Accessible to both authenticated and non-authenticated users */}
+      <Route path="/login" component={Login} />
+      
       {!isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        <>
+          <Route path="/" component={Landing} />
+          {/* Redirect any other route to login */}
+          <Route path="/:rest*" component={Login} />
+        </>
       ) : (
         <>
           <Route path="/" component={Home} />
           
           {/* Admin Routes */}
-          {userRole === 'admin' && (
+          {user?.roleId === 1 && (
             <>
               <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/users" component={AdminUsers} />
@@ -83,7 +69,7 @@ function Router() {
           )}
           
           {/* Teacher Routes */}
-          {userRole === 'teacher' && (
+          {user?.roleId === 2 && (
             <>
               <Route path="/teacher" component={TeacherDashboard} />
               <Route path="/teacher/exams" component={TeacherExams} />
@@ -91,7 +77,7 @@ function Router() {
           )}
           
           {/* Student Routes */}
-          {userRole === 'student' && (
+          {user?.roleId === 3 && (
             <>
               <Route path="/student" component={StudentDashboard} />
               <Route path="/student/results" component={StudentResults} />
@@ -100,7 +86,7 @@ function Router() {
           )}
           
           {/* Parent Routes */}
-          {userRole === 'parent' && (
+          {user?.roleId === 4 && (
             <>
               <Route path="/parent" component={ParentDashboard} />
             </>
