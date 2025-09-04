@@ -10,7 +10,7 @@ const getSSLServername = () => {
   }
   
   // Extract from DATABASE_URL as fallback
-  const host = process.env.DATABASE_URL?.match(/@([^:]+)/)?.[1];
+  const host = process.env.DATABASE_URL?.match(/@([^:@]+)/)?.[1];
   return host || 'aws-0-us-east-1.pooler.supabase.com'; // Default to common US host
 };
 
