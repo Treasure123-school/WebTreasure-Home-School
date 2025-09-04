@@ -18,18 +18,15 @@ export function useAuth() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Check authentication status on mount
     checkAuth();
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
-          await fetchUserProfile(session.user.id);
+          setUser(session.user as AppUser);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
         }
       }
     );
@@ -39,45 +36,13 @@ export function useAuth() {
 
   const checkAuth = async () => {
     try {
-      // Check if we have a valid session
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        // Fetch user profile from your database
-        await fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
+      setUser(session?.user as AppUser || null);
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      // Fetch user profile from your API
-      const response = await fetch(`/api/users/${userId}`);
-      
-      if (response.ok) {
-        const userProfile = await response.json();
-        
-        // Get the Supabase auth user
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        
-        if (authUser) {
-          // Combine auth user with profile data
-          setUser({ ...authUser, ...userProfile });
-          localStorage.setItem('user', JSON.stringify({ ...authUser, ...userProfile }));
-        }
-      } else {
-        console.error('Failed to fetch user profile');
-        await supabase.auth.signOut();
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
     }
   };
 
@@ -93,9 +58,12 @@ export function useAuth() {
         throw new Error(error.message);
       }
 
+      // After successful login, get the full user data with profile
       if (data.user) {
-        // Fetch the user profile from your database
-        await fetchUserProfile(data.user.id);
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          setUser(authUser as AppUser);
+        }
       }
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
@@ -106,59 +74,10 @@ export function useAuth() {
 
   const logout = async (): Promise<void> => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-      }
+      await supabase.auth.signOut();
+      setLocation('/login');
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setLocation('/login');
-    }
-  };
-
-  const signup = async (email: string, password: string, userData: any): Promise<void> => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: userData.full_name,
-            role_id: userData.role_id
-          }
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.user) {
-        // Create user profile in your database
-        const response = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...userData,
-            id: data.user.id
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create user profile');
-        }
-      }
-    } catch (error: any) {
-      throw new Error(error.message || 'Signup failed');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -167,7 +86,6 @@ export function useAuth() {
     isLoading: loading,
     isAuthenticated: !!user,
     login,
-    logout,
-    signup
+    logout
   };
 }
