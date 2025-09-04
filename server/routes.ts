@@ -19,6 +19,29 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// ✅ AUTHENTICATION MIDDLEWARE - DECLARED BEFORE USE
+const authenticateToken = async (req: any, res: any, next: any) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "Access token required" });
+    }
+
+    const token = authHeader.substring(7);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return res.status(403).json({ message: "Invalid or expired token" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: "Authentication failed" });
+  }
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ DEBUG ENDPOINT
   app.get('/api/debug', async (req, res) => {
@@ -78,7 +101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         exams: '/api/exams',
         enrollments: '/api/enrollments',
         messages: '/api/messages',
-        users: '/api/users/:id' // ADDED THIS
+        users: '/api/users/:id'
       }
     });
   });
@@ -301,29 +324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to initialize admin" });
     }
   });
-
-  // ✅ AUTHENTICATION MIDDLEWARE
-  const authenticateToken = async (req: any, res: any, next: any) => {
-    try {
-      const authHeader = req.headers.authorization;
-      
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: "Access token required" });
-      }
-
-      const token = authHeader.substring(7);
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      
-      if (error || !user) {
-        return res.status(403).json({ message: "Invalid or expired token" });
-      }
-
-      req.user = user;
-      next();
-    } catch (error) {
-      return res.status(403).json({ message: "Authentication failed" });
-    }
-  };
 
   // ===== PROTECTED ROUTES =====
 
