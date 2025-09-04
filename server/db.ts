@@ -9,16 +9,15 @@ const getSSLServername = () => {
     return process.env.DB_SSL_SERVERNAME;
   }
   
-  // Extract from DATABASE_URL as fallback
-  const host = process.env.DATABASE_URL?.match(/@([^:@]+)/)?.[1];
-  return host || 'aws-0-us-east-1.pooler.supabase.com'; // Default to common US host
+  // Extract from DATABASE_URL properly - FIXED REGEX
+  const match = process.env.DATABASE_URL?.match(/@([^:]+):/);
+  return match ? match[1] : 'aws-0-us-east-1.pooler.supabase.com';
 };
 
 const SSL_SERVERNAME = getSSLServername();
 
 console.log('Database Connection Debug:');
 console.log('SSL Servername:', SSL_SERVERNAME);
-console.log('Host:', process.env.DATABASE_URL?.match(/@([^:]+)/)?.[1] || 'unknown');
 console.log('Port:', process.env.DATABASE_URL?.match(/:(\d+)\//)?.[1] || 'unknown');
 
 if (!process.env.DATABASE_URL) {
@@ -30,7 +29,7 @@ export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false,
-    servername: SSL_SERVERNAME // ✅ Now dynamic based on your connection string
+    servername: SSL_SERVERNAME
   },
   max: 2,
   idleTimeoutMillis: 60000,
@@ -61,14 +60,6 @@ async function testDatabaseConnection() {
   } catch (error: any) {
     console.error('❌ Database connection failed:');
     console.error('Error message:', error.message);
-    
-    // ✅ PROVIDE SPECIFIC TROUBLESHOOTING TIPS
-    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-      console.log('\n🔧 TROUBLESHOOTING TIPS:');
-      console.log('1. Check Supabase Dashboard → Settings → Database → Connection Security');
-      console.log('2. Ensure "Allow all IP addresses" is enabled');
-      console.log('3. Verify your database password is correct');
-    }
   } finally {
     if (client) {
       client.release();
