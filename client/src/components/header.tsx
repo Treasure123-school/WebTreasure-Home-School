@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import { GraduationCap, ChevronDown, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,13 +12,22 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
+  const [, setLocation] = useLocation(); // ADD THIS
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleLogin = () => {
+    setLocation('/login'); // FIXED: Use wouter navigation
+  };
+
+  const handleLogout = async () => {
+    await logout(); // FIXED: Use auth hook logout
   };
 
   return (
@@ -81,7 +90,7 @@ export default function Header() {
               Contact
             </button>
             
-            {/* Portal Dropdown */}
+            {/* Portal Dropdown - FIXED */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -94,32 +103,42 @@ export default function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-48">
                 {isAuthenticated ? (
-                  <DropdownMenuItem asChild>
-                    <a href="/api/logout" className="flex items-center" data-testid="logout-link">
-                      <span>Logout</span>
-                    </a>
+                  <DropdownMenuItem 
+                    onClick={handleLogout} // FIXED: Use logout function
+                    className="cursor-pointer"
+                    data-testid="logout-link"
+                  >
+                    <span>Logout</span>
                   </DropdownMenuItem>
                 ) : (
                   <>
-                    <DropdownMenuItem asChild>
-                      <a href="/api/login" className="flex items-center" data-testid="admin-portal">
-                        <span>Admin Portal</span>
-                      </a>
+                    <DropdownMenuItem 
+                      onClick={handleLogin} // FIXED: Use login function
+                      className="cursor-pointer"
+                      data-testid="admin-portal"
+                    >
+                      <span>Admin Portal</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href="/api/login" className="flex items-center" data-testid="teacher-portal">
-                        <span>Teacher Portal</span>
-                      </a>
+                    <DropdownMenuItem 
+                      onClick={handleLogin} // FIXED: Use login function
+                      className="cursor-pointer"
+                      data-testid="teacher-portal"
+                    >
+                      <span>Teacher Portal</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href="/api/login" className="flex items-center" data-testid="student-portal">
-                        <span>Student Portal</span>
-                      </a>
+                    <DropdownMenuItem 
+                      onClick={handleLogin} // FIXED: Use login function
+                      className="cursor-pointer"
+                      data-testid="student-portal"
+                    >
+                      <span>Student Portal</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href="/api/login" className="flex items-center" data-testid="parent-portal">
-                        <span>Parent Portal</span>
-                      </a>
+                    <DropdownMenuItem 
+                      onClick={handleLogin} // FIXED: Use login function
+                      className="cursor-pointer"
+                      data-testid="parent-portal"
+                    >
+                      <span>Parent Portal</span>
                     </DropdownMenuItem>
                   </>
                 )}
@@ -167,7 +186,7 @@ export default function Header() {
           </Button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - FIXED */}
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t" data-testid="mobile-menu">
             <div className="space-y-4">
@@ -224,21 +243,27 @@ export default function Header() {
               <div className="pt-4 border-t">
                 <p className="text-sm text-textSecondary mb-2">Portal Access:</p>
                 {isAuthenticated ? (
-                  <a 
-                    href="/api/logout" 
+                  <button 
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
                     className="block text-primary hover:underline"
                     data-testid="mobile-logout"
                   >
                     Logout
-                  </a>
+                  </button>
                 ) : (
-                  <a 
-                    href="/api/login" 
+                  <button 
+                    onClick={() => {
+                      handleLogin();
+                      setMobileMenuOpen(false);
+                    }}
                     className="block text-primary hover:underline"
                     data-testid="mobile-login"
                   >
                     Login to Portal
-                  </a>
+                  </button>
                 )}
               </div>
             </div>
