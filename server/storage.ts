@@ -8,6 +8,8 @@ import {
   enrollments,
   messages,
   roles,
+  passwords,
+  passwordResetTokens,
   type User,
   type UpsertUser,
   type InsertAnnouncement,
@@ -24,39 +26,68 @@ import {
   type Enrollment,
   type InsertMessage,
   type Message,
+  type InsertPassword,
+  type Password,
+  type InsertPasswordResetToken,
+  type PasswordResetToken,
 } from './schema';
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getUsersByRole(role: string): Promise<User[]>;
+  
+  // NEW AUTHENTICATION METHODS
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: UpsertUser): Promise<User>;
+  updateUserLastLogin(id: string): Promise<void>;
+  createUserPassword(userId: string, passwordHash: string): Promise<void>;
+  getUserPassword(userId: string): Promise<Password | null>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  initializeDefaultAdmin(): Promise<void>;
+
+  // Announcements
   getAnnouncements(): Promise<Announcement[]>;
   getAnnouncementsByAudience(audience: string): Promise<Announcement[]>;
   createAnnouncement(announcement: InsertAnnouncement): Promise<Announcement>;
   updateAnnouncement(id: number, announcement: Partial<InsertAnnouncement>): Promise<Announcement>;
   deleteAnnouncement(id: number): Promise<void>;
+
+  // Gallery
   getGalleryImages(): Promise<Gallery[]>;
   createGalleryImage(gallery: InsertGallery): Promise<Gallery>;
   deleteGalleryImage(id: number): Promise<void>;
+
+  // Exams
   getExams(): Promise<Exam[]>;
   getExamsByClass(className: string): Promise<Exam[]>;
   getExam(id: number): Promise<Exam | undefined>;
   createExam(exam: InsertExam): Promise<Exam>;
   updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam>;
   deleteExam(id: number): Promise<void>;
+
+  // Questions
   getQuestionsByExam(examId: number): Promise<Question[]>;
   createQuestion(question: InsertQuestion): Promise<Question>;
   updateQuestion(id: number, question: Partial<InsertQuestion>): Promise<Question>;
   deleteQuestion(id: number): Promise<void>;
+
+  // Exam Submissions
   getSubmissionsByStudent(studentId: string): Promise<ExamSubmission[]>;
   getSubmissionsByExam(examId: number): Promise<ExamSubmission[]>;
   getSubmission(examId: number, studentId: string): Promise<ExamSubmission | undefined>;
   createSubmission(submission: InsertExamSubmission): Promise<ExamSubmission>;
+
+  // Enrollments
   getEnrollments(): Promise<Enrollment[]>;
   createEnrollment(enrollment: InsertEnrollment): Promise<Enrollment>;
   updateEnrollmentStatus(id: number, status: string): Promise<Enrollment>;
+
+  // Messages
   getMessages(): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
 }
@@ -84,6 +115,84 @@ export class DatabaseStorage implements IStorage {
     const [roleData] = await db.select().from(roles).where(eq(roles.role_name, role));
     if (!roleData) return [];
     return await db.select().from(users).where(eq(users.role_id, roleData.id));
+  }
+
+  // ===== NEW AUTHENTICATION METHODS =====
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUserLastLogin(id: string): Promise<void> {
+    await db.update(users)
+      .set({ last_login: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  async createUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await db.insert(passwords).values({
+      id: userId,
+      password_hash: passwordHash
+    });
+  }
+
+  async getUserPassword(userId: string): Promise<Password | null> {
+    const [password] = await db.select().from(passwords).where(eq(passwords.id, userId));
+    return password || null;
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    await db.update(passwords)
+      .set({ 
+        password_hash: passwordHash,
+        updated_at: new Date()
+      })
+      .where(eq(passwords.id, userId));
+  }
+
+  async initializeDefaultAdmin(): Promise<void> {
+    try {
+      // Check if admin role exists
+      const [adminRole] = await db.select().from(roles).where(eq(roles.role_name, 'Admin'));
+      
+      if (!adminRole) {
+        // Create admin role if it doesn't exist
+        await db.insert(roles).values({ role_name: 'Admin' });
+      }
+
+      // Check if default admin already exists
+      const adminEmail = "admin@treasure.edu";
+      const existingAdmin = await this.getUserByEmail(adminEmail);
+      
+      if (!existingAdmin) {
+        console.log("Creating default admin user...");
+        // This is just for the database record - actual auth is handled by Supabase
+        const [adminUser] = await db.insert(users).values({
+          id: 'default-admin-id', // This will be replaced by Supabase auth user ID
+          full_name: "System Administrator",
+          email: adminEmail,
+          role_id: 1, // Admin role
+          is_active: true
+        }).returning();
+        
+        console.log("Default admin user created in database:", adminUser);
+      } else {
+        console.log("Default admin user already exists in database");
+      }
+    } catch (error) {
+      console.error("Error initializing default admin:", error);
+      throw error;
+    }
   }
 
   // Announcements
