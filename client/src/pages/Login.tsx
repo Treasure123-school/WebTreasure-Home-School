@@ -13,7 +13,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
-  const { login: authLogin } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +21,7 @@ export default function Login() {
     setError(null);
 
     try {
-      await authLogin(email, password);
+      await login(email, password);
       setLocation('/');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
