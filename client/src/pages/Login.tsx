@@ -20,8 +20,8 @@ export default function Login() {
 
     try {
       await login(email, password);
-      // Let the auth state change handler in useAuth handle the navigation
-      // This ensures consistency and avoids race conditions
+      // The redirect is now handled by the useAuth hook itself
+      // after the user state is updated
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials and try again.');
     } finally {
