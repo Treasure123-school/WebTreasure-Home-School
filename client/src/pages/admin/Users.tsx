@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  class: string | null;
+  created_at: string;
+  role_name: string;
+  role_id: number;
+}
+
 export default function AdminUsers() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -41,46 +52,143 @@ export default function AdminUsers() {
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || user.role_name !== 'admin')) {
       toast({
         title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        description: "You need admin privileges to access this page.",
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+        window.location.href = "/login";
+      }, 2000);
     }
-  }, [user, isLoading, toast]);
+  }, [user, authLoading, toast]);
 
+  // Fetch users from Supabase
   const { data: users = [], isLoading: usersLoading } = useQuery({
-    queryKey: ['/api/users'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          email,
+          full_name,
+          phone,
+          class,
+          created_at,
+          role_id,
+          roles (role_name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+
+      return data.map(user => ({
+        ...user,
+        role_name: user.roles?.role_name || 'Unknown',
+        phone: user.phone || '-',
+        class: user.class || '-'
+      }));
+    },
+    enabled: !!user && user.role_name === 'admin',
   });
 
+  // Update user role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, newRole }: { userId: string, newRole: string }) => {
-      await apiRequest('PUT', `/api/users/${userId}/role`, { role: newRole });
+      // First get the role_id for the new role
+      const { data: roleData, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('role_name', newRole.charAt(0).toUpperCase() + newRole.slice(1))
+        .single();
+
+      if (roleError) throw roleError;
+      if (!roleData) throw new Error('Role not found');
+
+      // Update the user's role_id
+      const { error } = await supabase
+        .from('users')
+        .update({ role_id: roleData.id })
+        .eq('id', userId);
+
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
         title: "Role Updated",
         description: "User role has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update user role.",
+        description: error.message || "Failed to update user role.",
         variant: "destructive",
       });
     },
   });
 
-  if (isLoading || !user) {
+  // Create new user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async (userData: { email: string; password: string; full_name: string; role: string }) => {
+      // 1. Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.full_name,
+            role: userData.role
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      // 2. Get role_id
+      const { data: roleData } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('role_name', userData.role.charAt(0).toUpperCase() + userData.role.slice(1))
+        .single();
+
+      if (!roleData) throw new Error('Role not found');
+
+      // 3. Add to users table
+      const { error: dbError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user?.id,
+          email: userData.email,
+          full_name: userData.full_name,
+          role_id: roleData.id
+        });
+
+      if (dbError) throw dbError;
+    },
+    onSuccess: () => {
+      toast({
+        title: "User Created",
+        description: "User has been created successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -88,19 +196,29 @@ export default function AdminUsers() {
     );
   }
 
-  const filteredUsers = users.filter((u: any) => {
+  if (!user || user.role_name !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
+          <p className="text-textSecondary">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredUsers = users.filter((u: User) => {
     const matchesSearch = !searchTerm || 
-      u.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    const matchesRole = roleFilter === "all" || u.role_name.toLowerCase() === roleFilter;
     
     return matchesSearch && matchesRole;
   });
 
   const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
+    switch (role.toLowerCase()) {
       case 'admin':
         return 'destructive';
       case 'teacher':
@@ -116,6 +234,10 @@ export default function AdminUsers() {
 
   const handleRoleUpdate = (userId: string, newRole: string) => {
     updateRoleMutation.mutate({ userId, newRole });
+  };
+
+  const handleCreateUser = async (userData: { email: string; password: string; full_name: string; role: string }) => {
+    createUserMutation.mutate(userData);
   };
 
   return (
@@ -152,6 +274,23 @@ export default function AdminUsers() {
                   <SelectItem value="parent">Parent</SelectItem>
                 </SelectContent>
               </Select>
+              <Button 
+                onClick={() => {
+                  // Simple create user form - you can replace this with a modal
+                  const email = prompt("Enter user email:");
+                  const password = prompt("Enter temporary password:");
+                  const fullName = prompt("Enter full name:");
+                  const role = prompt("Enter role (admin/teacher/student/parent):");
+                  
+                  if (email && password && fullName && role) {
+                    handleCreateUser({ email, password, full_name: fullName, role });
+                  }
+                }}
+                className="whitespace-nowrap"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -188,16 +327,16 @@ export default function AdminUsers() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((u: any) => (
+                    {filteredUsers.map((u: User) => (
                       <TableRow key={u.id} data-testid={`user-row-${u.id}`}>
                         <TableCell>
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-semibold">
-                              {(u.firstName?.charAt(0) || '') + (u.lastName?.charAt(0) || '')}
+                              {u.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                             </div>
                             <div>
                               <div className="font-medium text-textPrimary">
-                                {u.firstName} {u.lastName}
+                                {u.full_name}
                               </div>
                               <div className="text-sm text-textSecondary">{u.phone}</div>
                             </div>
@@ -205,13 +344,13 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell>{u.email}</TableCell>
                         <TableCell>
-                          <Badge variant={getRoleBadgeVariant(u.role)} data-testid={`role-badge-${u.id}`}>
-                            {u.role}
+                          <Badge variant={getRoleBadgeVariant(u.role_name)} data-testid={`role-badge-${u.id}`}>
+                            {u.role_name}
                           </Badge>
                         </TableCell>
-                        <TableCell>{u.className || '-'}</TableCell>
+                        <TableCell>{u.class}</TableCell>
                         <TableCell>
-                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}
+                          {new Date(u.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -223,28 +362,28 @@ export default function AdminUsers() {
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem 
                                 onClick={() => handleRoleUpdate(u.id, 'admin')}
-                                disabled={u.role === 'admin' || updateRoleMutation.isPending}
+                                disabled={u.role_name.toLowerCase() === 'admin' || updateRoleMutation.isPending}
                                 data-testid={`set-admin-${u.id}`}
                               >
                                 Set as Admin
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleRoleUpdate(u.id, 'teacher')}
-                                disabled={u.role === 'teacher' || updateRoleMutation.isPending}
+                                disabled={u.role_name.toLowerCase() === 'teacher' || updateRoleMutation.isPending}
                                 data-testid={`set-teacher-${u.id}`}
                               >
                                 Set as Teacher
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleRoleUpdate(u.id, 'student')}
-                                disabled={u.role === 'student' || updateRoleMutation.isPending}
+                                disabled={u.role_name.toLowerCase() === 'student' || updateRoleMutation.isPending}
                                 data-testid={`set-student-${u.id}`}
                               >
                                 Set as Student
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleRoleUpdate(u.id, 'parent')}
-                                disabled={u.role === 'parent' || updateRoleMutation.isPending}
+                                disabled={u.role_name.toLowerCase() === 'parent' || updateRoleMutation.isPending}
                                 data-testid={`set-parent-${u.id}`}
                               >
                                 Set as Parent
