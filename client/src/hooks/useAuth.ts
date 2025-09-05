@@ -10,12 +10,56 @@ interface AppUser extends User {
   phone?: string;
   gender?: string;
   dob?: string;
+  role_name?: string;
 }
 
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
+
+  // Function to fetch user profile data from your custom users table
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          *,
+          roles (role_name)
+        `)
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error);
+      return null;
+    }
+  };
+
+  const redirectBasedOnRole = (roleName: string) => {
+    switch (roleName?.toLowerCase()) {
+      case 'admin':
+        setLocation('/admin/dashboard');
+        break;
+      case 'teacher':
+        setLocation('/teacher/dashboard');
+        break;
+      case 'student':
+        setLocation('/student/dashboard');
+        break;
+      case 'parent':
+        setLocation('/parent/dashboard');
+        break;
+      default:
+        setLocation('/dashboard');
+    }
+  };
 
   useEffect(() => {
     checkAuth();
@@ -24,9 +68,20 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
-          setUser(session.user as AppUser);
+          // Fetch the user's profile data from your custom table
+          const userProfile = await fetchUserProfile(session.user.id);
+          const userWithProfile = {
+            ...session.user,
+            ...userProfile,
+            role_name: userProfile?.roles?.role_name
+          };
+          setUser(userWithProfile as AppUser);
+          
+          // Redirect based on role
+          redirectBasedOnRole(userProfile?.roles?.role_name);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setLocation('/login');
         }
       }
     );
@@ -37,7 +92,22 @@ export function useAuth() {
   const checkAuth = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user as AppUser || null);
+      
+      if (session?.user) {
+        // Fetch the user's profile data from your custom table
+        const userProfile = await fetchUserProfile(session.user.id);
+        const userWithProfile = {
+          ...session.user,
+          ...userProfile,
+          role_name: userProfile?.roles?.role_name
+        };
+        setUser(userWithProfile as AppUser);
+        
+        // Redirect based on role if already authenticated
+        redirectBasedOnRole(userProfile?.roles?.role_name);
+      } else {
+        setUser(null);
+      }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
@@ -60,10 +130,16 @@ export function useAuth() {
 
       // After successful login, get the full user data with profile
       if (data.user) {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          setUser(authUser as AppUser);
-        }
+        const userProfile = await fetchUserProfile(data.user.id);
+        const userWithProfile = {
+          ...data.user,
+          ...userProfile,
+          role_name: userProfile?.roles?.role_name
+        };
+        setUser(userWithProfile as AppUser);
+        
+        // Redirect based on role
+        redirectBasedOnRole(userProfile?.roles?.role_name);
       }
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
@@ -75,6 +151,7 @@ export function useAuth() {
   const logout = async (): Promise<void> => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
       setLocation('/login');
     } catch (error) {
       console.error('Logout error:', error);
