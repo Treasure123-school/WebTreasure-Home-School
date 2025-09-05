@@ -20,6 +20,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
+// Temporary: Expose supabase to global scope for debugging
+if (import.meta.env.DEV) {
+  (window as any).supabase = supabase;
+  console.log('Supabase client exposed to window.supabase for debugging');
+}
+
 // Optional: Add auth state change listener for debugging
 supabase.auth.onAuthStateChange((event, session) => {
   console.log('Auth state changed:', event, session)
