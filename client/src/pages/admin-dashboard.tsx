@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -15,64 +16,144 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { isUnauthorizedError } from "@/lib/authUtils";
+
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role_name: string;
+}
+
+interface Announcement {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+interface Exam {
+  id: string;
+  title: string;
+  created_at: string;
+}
+
+interface Enrollment {
+  id: string;
+  child_name: string;
+  parent_name: string;
+  child_age: number;
+  status: string;
+  created_at: string;
+}
+
+interface Message {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  created_at: string;
+}
+
+interface Gallery {
+  id: string;
+  caption: string;
+  created_at: string;
+}
 
 export default function AdminDashboard() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeExams: 0,
+    announcements: 0,
+    pendingEnrollments: 0,
+    galleryImages: 0,
+    messages: 0
+  });
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || user.role_name !== 'admin')) {
       toast({
         title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        description: "You need admin privileges to access this page.",
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+        window.location.href = "/login";
+      }, 2000);
     }
-  }, [user, isLoading, toast]);
+  }, [user, authLoading, toast]);
 
-  const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
+  // Fetch all data for dashboard
+  const { data: dashboardData, isLoading: dataLoading } = useQuery({
+    queryKey: ['admin-dashboard'],
+    queryFn: async () => {
+      // Fetch users
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, email, full_name, role_name')
+        .order('created_at', { ascending: false });
+
+      // Fetch announcements
+      const { data: announcementsData } = await supabase
+        .from('announcements')
+        .select('id, title, created_at')
+        .order('created_at', { ascending: false });
+
+      // Fetch exams
+      const { data: examsData } = await supabase
+        .from('exams')
+        .select('id, title, created_at')
+        .order('created_at', { ascending: false });
+
+      // Fetch enrollments
+      const { data: enrollmentsData } = await supabase
+        .from('enrollments')
+        .select('id, child_name, parent_name, child_age, status, created_at')
+        .order('created_at', { ascending: false });
+
+      // Fetch messages
+      const { data: messagesData } = await supabase
+        .from('messages')
+        .select('id, name, email, message, created_at')
+        .order('created_at', { ascending: false });
+
+      // Fetch gallery
+      const { data: galleryData } = await supabase
+        .from('gallery')
+        .select('id, caption, created_at')
+        .order('created_at', { ascending: false });
+
+      return {
+        users: usersData || [],
+        announcements: announcementsData || [],
+        exams: examsData || [],
+        enrollments: enrollmentsData || [],
+        messages: messagesData || [],
+        gallery: galleryData || []
+      };
+    },
+    enabled: !!user && user.role_name === 'admin',
   });
 
-  const { data: announcements = [] } = useQuery({
-    queryKey: ['/api/announcements'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
+  // Calculate stats when data loads
+  useEffect(() => {
+    if (dashboardData) {
+      const pendingEnrollments = dashboardData.enrollments.filter((e: Enrollment) => e.status === 'pending');
+      
+      setStats({
+        totalUsers: dashboardData.users.length,
+        activeExams: dashboardData.exams.length,
+        announcements: dashboardData.announcements.length,
+        pendingEnrollments: pendingEnrollments.length,
+        galleryImages: dashboardData.gallery.length,
+        messages: dashboardData.messages.length
+      });
+    }
+  }, [dashboardData]);
 
-  const { data: exams = [] } = useQuery({
-    queryKey: ['/api/exams'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
-
-  const { data: enrollments = [] } = useQuery({
-    queryKey: ['/api/enrollments'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
-
-  const { data: messages = [] } = useQuery({
-    queryKey: ['/api/messages'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
-
-  const { data: gallery = [] } = useQuery({
-    queryKey: ['/api/gallery'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
-
-  if (isLoading || !user) {
+  if (authLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -80,13 +161,26 @@ export default function AdminDashboard() {
     );
   }
 
-  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'pending');
+  if (!user || user.role_name !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
+          <p className="text-textSecondary">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
   const usersByRole = {
-    admin: users.filter((u: any) => u.role === 'admin'),
-    teacher: users.filter((u: any) => u.role === 'teacher'),
-    student: users.filter((u: any) => u.role === 'student'),
-    parent: users.filter((u: any) => u.role === 'parent'),
+    admin: dashboardData?.users.filter((u: User) => u.role_name === 'Admin') || [],
+    teacher: dashboardData?.users.filter((u: User) => u.role_name === 'Teacher') || [],
+    student: dashboardData?.users.filter((u: User) => u.role_name === 'Student') || [],
+    parent: dashboardData?.users.filter((u: User) => u.role_name === 'Parent') || [],
   };
+
+  const pendingEnrollments = dashboardData?.enrollments.filter((e: Enrollment) => e.status === 'pending') || [];
+  const recentMessages = dashboardData?.messages.slice(0, 5) || [];
 
   return (
     <Layout type="portal">
@@ -96,7 +190,7 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-textSecondary mt-2">
-            Welcome back, {user.firstName}! Here's an overview of your school management system.
+            Welcome back, {user.full_name}! Here's an overview of your school management system.
           </p>
         </div>
 
@@ -106,7 +200,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{users.length}</div>
+                  <div className="text-3xl font-bold">{stats.totalUsers}</div>
                   <div className="text-blue-100">Total Users</div>
                 </div>
                 <Users className="h-12 w-12 text-blue-200" />
@@ -118,7 +212,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{exams.length}</div>
+                  <div className="text-3xl font-bold">{stats.activeExams}</div>
                   <div className="text-green-100">Active Exams</div>
                 </div>
                 <GraduationCap className="h-12 w-12 text-green-200" />
@@ -130,7 +224,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{announcements.length}</div>
+                  <div className="text-3xl font-bold">{stats.announcements}</div>
                   <div className="text-orange-100">Announcements</div>
                 </div>
                 <Megaphone className="h-12 w-12 text-orange-200" />
@@ -142,7 +236,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{pendingEnrollments.length}</div>
+                  <div className="text-3xl font-bold">{stats.pendingEnrollments}</div>
                   <div className="text-purple-100">Pending Enrollments</div>
                 </div>
                 <UserPlus className="h-12 w-12 text-purple-200" />
@@ -194,28 +288,28 @@ export default function AdminDashboard() {
                     <Camera className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Gallery Images</span>
                   </div>
-                  <Badge variant="outline">{gallery.length}</Badge>
+                  <Badge variant="outline">{stats.galleryImages}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <MessageSquare className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Messages</span>
                   </div>
-                  <Badge variant="outline">{messages.length}</Badge>
+                  <Badge variant="outline">{stats.messages}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <BookOpen className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Total Exams</span>
                   </div>
-                  <Badge variant="outline">{exams.length}</Badge>
+                  <Badge variant="outline">{stats.activeExams}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <FileText className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Active Announcements</span>
                   </div>
-                  <Badge variant="outline">{announcements.length}</Badge>
+                  <Badge variant="outline">{stats.announcements}</Badge>
                 </div>
               </div>
             </CardContent>
@@ -234,12 +328,12 @@ export default function AdminDashboard() {
                 <p className="text-textSecondary text-center py-4">No pending enrollment requests</p>
               ) : (
                 <div className="space-y-4">
-                  {pendingEnrollments.slice(0, 5).map((enrollment: any) => (
+                  {pendingEnrollments.slice(0, 5).map((enrollment: Enrollment) => (
                     <div key={enrollment.id} className="flex items-center justify-between p-3 bg-backgroundSurface rounded-lg">
                       <div>
-                        <div className="font-medium text-textPrimary">{enrollment.childName}</div>
+                        <div className="font-medium text-textPrimary">{enrollment.child_name}</div>
                         <div className="text-sm text-textSecondary">
-                          Parent: {enrollment.parentName} • Age: {enrollment.childAge}
+                          Parent: {enrollment.parent_name} • Age: {enrollment.child_age}
                         </div>
                       </div>
                       <Badge 
@@ -261,16 +355,16 @@ export default function AdminDashboard() {
               <CardTitle>Recent Messages</CardTitle>
             </CardHeader>
             <CardContent>
-              {messages.length === 0 ? (
+              {recentMessages.length === 0 ? (
                 <p className="text-textSecondary text-center py-4">No messages received</p>
               ) : (
                 <div className="space-y-4">
-                  {messages.slice(0, 5).map((message: any) => (
+                  {recentMessages.map((message: Message) => (
                     <div key={message.id} className="p-3 bg-backgroundSurface rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium text-textPrimary">{message.name}</div>
                         <div className="text-xs text-textSecondary">
-                          {new Date(message.createdAt).toLocaleDateString()}
+                          {new Date(message.created_at).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="text-sm text-textSecondary line-clamp-2">
