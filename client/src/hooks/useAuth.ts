@@ -43,21 +43,28 @@ export function useAuth() {
   };
 
   const redirectBasedOnRole = (roleName: string) => {
+    console.log('Redirecting based on role:', roleName);
+    
     switch (roleName?.toLowerCase()) {
       case 'admin':
-        setLocation('/admin/dashboard');
+        console.log('Redirecting to /admin');
+        setLocation('/admin');
         break;
       case 'teacher':
-        setLocation('/teacher/dashboard');
+        console.log('Redirecting to /teacher');
+        setLocation('/teacher');
         break;
       case 'student':
-        setLocation('/student/dashboard');
+        console.log('Redirecting to /student');
+        setLocation('/student');
         break;
       case 'parent':
-        setLocation('/parent/dashboard');
+        console.log('Redirecting to /parent');
+        setLocation('/parent');
         break;
       default:
-        setLocation('/dashboard');
+        console.log('Redirecting to /');
+        setLocation('/');
     }
   };
 
