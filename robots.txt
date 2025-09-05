@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Directives for search engines
+Crawl-delay: 10
+
+# Sitemap location
+Sitemap: https://treasurehomeschool.vercel.app/sitemap.xml
