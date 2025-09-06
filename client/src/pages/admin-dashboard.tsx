@@ -16,125 +16,171 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
 
-interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  role_name: string;
+interface User { 
+  id: string; 
+  email: string; 
+  full_name: string; 
+  role_name: string; 
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  created_at: string;
+interface Announcement { 
+  id: string; 
+  title: string; 
+  created_at: string; 
 }
 
-interface Exam {
-  id: string;
-  title: string;
-  created_at: string;
+interface Exam { 
+  id: string; 
+  title: string; 
+  created_at: string; 
 }
 
-interface Enrollment {
-  id: string;
-  child_name: string;
-  parent_name: string;
-  child_age: number;
-  status: string;
-  created_at: string;
+interface Enrollment { 
+  id: string; 
+  child_name: string; 
+  parent_name: string; 
+  child_age: number; 
+  status: string; 
+  created_at: string; 
 }
 
-interface Message {
-  id: string;
-  name: string;
-  email: string;
-  message: string;
-  created_at: string;
+interface Message { 
+  id: string; 
+  name: string; 
+  email: string; 
+  message: string; 
+  created_at: string; 
 }
 
-interface Gallery {
-  id: string;
-  caption: string;
-  created_at: string;
+interface Gallery { 
+  id: string; 
+  caption: string; 
+  created_at: string; 
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard() { 
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    activeExams: 0,
-    announcements: 0,
-    pendingEnrollments: 0,
-    galleryImages: 0,
-    messages: 0
+  const [, setLocation] = useLocation();
+  const [stats, setStats] = useState({ 
+    totalUsers: 0, 
+    activeExams: 0, 
+    announcements: 0, 
+    pendingEnrollments: 0, 
+    galleryImages: 0, 
+    messages: 0 
   });
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!authLoading && (!user || user.role_name !== 'admin')) {
-      toast({
-        title: "Unauthorized",
-        description: "You need admin privileges to access this page.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
+    if (!authLoading) {
+      if (!user) {
+        toast({
+          title: "Unauthorized",
+          description: "Please log in to access this page",
+          variant: "destructive",
+        });
+        setLocation('/login');
+        return;
+      }
+      
+      // Check for role_name (case-sensitive)
+      if (user.role_name !== 'Admin') {
+        toast({
+          title: "Access Denied",
+          description: "You need admin privileges to access this page",
+          variant: "destructive",
+        });
+        setLocation('/unauthorized');
+        return;
+      }
     }
-  }, [user, authLoading, toast]);
+  }, [user, authLoading, toast, setLocation]);
 
   // Fetch all data for dashboard
   const { data: dashboardData, isLoading: dataLoading } = useQuery({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
-      // Fetch users
-      const { data: usersData } = await supabase
-        .from('users')
-        .select('id, email, full_name, role_name')
-        .order('created_at', { ascending: false });
+      try {
+        // Fetch users
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, email, full_name, roles(role_name)')
+          .order('created_at', { ascending: false });
 
-      // Fetch announcements
-      const { data: announcementsData } = await supabase
-        .from('announcements')
-        .select('id, title, created_at')
-        .order('created_at', { ascending: false });
+        if (usersError) throw usersError;
 
-      // Fetch exams
-      const { data: examsData } = await supabase
-        .from('exams')
-        .select('id, title, created_at')
-        .order('created_at', { ascending: false });
+        // Fetch announcements
+        const { data: announcementsData, error: announcementsError } = await supabase
+          .from('announcements')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false });
 
-      // Fetch enrollments
-      const { data: enrollmentsData } = await supabase
-        .from('enrollments')
-        .select('id, child_name, parent_name, child_age, status, created_at')
-        .order('created_at', { ascending: false });
+        if (announcementsError) throw announcementsError;
 
-      // Fetch messages
-      const { data: messagesData } = await supabase
-        .from('messages')
-        .select('id, name, email, message, created_at')
-        .order('created_at', { ascending: false });
+        // Fetch exams
+        const { data: examsData, error: examsError } = await supabase
+          .from('exams')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false });
 
-      // Fetch gallery
-      const { data: galleryData } = await supabase
-        .from('gallery')
-        .select('id, caption, created_at')
-        .order('created_at', { ascending: false });
+        if (examsError) throw examsError;
 
-      return {
-        users: usersData || [],
-        announcements: announcementsData || [],
-        exams: examsData || [],
-        enrollments: enrollmentsData || [],
-        messages: messagesData || [],
-        gallery: galleryData || []
-      };
+        // Fetch enrollments
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select('id, child_name, parent_name, child_age, status, created_at')
+          .order('created_at', { ascending: false });
+
+        if (enrollmentsError) throw enrollmentsError;
+
+        // Fetch messages
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('id, name, email, message, created_at')
+          .order('created_at', { ascending: false });
+
+        if (messagesError) throw messagesError;
+
+        // Fetch gallery
+        const { data: galleryData, error: galleryError } = await supabase
+          .from('gallery')
+          .select('id, caption, created_at')
+          .order('created_at', { ascending: false });
+
+        if (galleryError) throw galleryError;
+
+        return {
+          users: usersData?.map(user => ({
+            ...user,
+            role_name: user.roles?.role_name || 'Unknown'
+          })) || [],
+          announcements: announcementsData || [],
+          exams: examsData || [],
+          enrollments: enrollmentsData || [],
+          messages: messagesData || [],
+          gallery: galleryData || []
+        };
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
+        return {
+          users: [],
+          announcements: [],
+          exams: [],
+          enrollments: [],
+          messages: [],
+          gallery: []
+        };
+      }
     },
-    enabled: !!user && user.role_name === 'admin',
+    enabled: !!user && user.role_name === 'Admin'
   });
 
   // Calculate stats when data loads
@@ -161,15 +207,8 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!user || user.role_name !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
-          <p className="text-textSecondary">You need admin privileges to access this page.</p>
-        </div>
-      </div>
-    );
+  if (!user || user.role_name !== 'Admin') {
+    return null; // Will redirect in useEffect
   }
 
   const usersByRole = {
