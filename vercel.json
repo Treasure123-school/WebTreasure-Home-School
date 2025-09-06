@@ -1,12 +1,12 @@
 {
-  "version": 3,
+  "version": 2,
   "builds": [
     {
       "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist",
-        "buildCommand": "cd client && npm install && npm run build"
+        "buildCommand": "cd client && npm run build"
       }
     }
   ],
@@ -19,39 +19,13 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/dist/$1",
-      "headers": {
-        "Cache-Control": "public, max-age=0, must-revalidate"
-      }
+      "dest": "/client/dist/$1"
     }
   ],
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/client/dist/index.html"
-    },
-    {
-      "source": "/admin",
-      "destination": "/client/dist/index.html"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/client/dist/index.html"
-    },
-    {
-      "source": "/teacher",
-      "destination": "/client/dist/index.html"
-    },
-    {
-      "source": "/student",
-      "destination": "/client/dist/index.html"
-    },
-    {
-      "source": "/parent",
-      "destination": "/client/dist/index.html"
+      "destination": "/index.html"
     }
-  ],
-  "outputDirectory": "client/dist",
-  "installCommand": "cd client && npm install",
-  "framework": "vite"
+  ]
 }
