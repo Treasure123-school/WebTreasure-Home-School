@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react"; // REMOVED useEffect - no longer needed!
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -60,7 +60,7 @@ interface Gallery {
 }
 
 export default function AdminDashboard() { 
-  const { user } = useAuth(); // Removed authLoading since ProtectedRoute handles it
+  const { user } = useAuth(); // Removed isLoading since ProtectedRoute handles it
   const { toast } = useToast();
   const [stats, setStats] = useState({ 
     totalUsers: 0, 
