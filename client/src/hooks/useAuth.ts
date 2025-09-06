@@ -14,30 +14,40 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Function to create a basic user profile if one doesn't exist
-  const createBasicUserProfile = async (userId: string, email: string) => {
+  // Function to create or update user profile
+  const upsertUserProfile = async (userId: string, email: string) => {
     try {
-      console.log('Creating basic user profile for:', email);
+      console.log('Upserting user profile for:', email);
       
-      // Get default role (Student)
+      // Try to get the user's role from auth metadata first, default to Admin for admin@treasure.edu
+      const { data: authUser } = await supabase.auth.getUser();
+      let roleName = 'Student'; // default
+      
+      if (authUser.user?.email === 'admin@treasure.edu') {
+        roleName = 'Admin';
+      } else if (authUser.user?.user_metadata?.role) {
+        roleName = authUser.user.user_metadata.role;
+      }
+
+      // Get the role ID
       const { data: role, error: roleError } = await supabase
         .from('roles')
         .select('id')
-        .eq('role_name', 'Student')
+        .eq('role_name', roleName)
         .single();
 
       if (roleError) {
-        console.error('Error fetching default role:', roleError);
+        console.error('Error fetching role:', roleError);
         return null;
       }
 
-      // Create basic user profile
-      const { data: newUser, error: createError } = await supabase
+      // Use UPSERT to handle both insert and update cases
+      const { data: userData, error: upsertError } = await supabase
         .from('users')
-        .insert({
+        .upsert({
           id: userId,
           email: email,
-          full_name: email.split('@')[0], // Use email prefix as name
+          full_name: authUser.user?.user_metadata?.full_name || email.split('@')[0],
           role_id: role.id
         })
         .select(`
@@ -49,15 +59,15 @@ export function useAuth() {
         `)
         .single();
 
-      if (createError) {
-        console.error('Error creating user profile:', createError);
+      if (upsertError) {
+        console.error('Error upserting user profile:', upsertError);
         return null;
       }
 
-      console.log('User profile created successfully:', newUser);
-      return newUser;
+      console.log('User profile upserted successfully:', userData);
+      return userData;
     } catch (error) {
-      console.error('Exception in createBasicUserProfile:', error);
+      console.error('Exception in upsertUserProfile:', error);
       return null;
     }
   };
@@ -82,10 +92,10 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching user profile:', error);
         
-        // If user doesn't exist in your table, create a basic profile
-        if (error.code === 'PGRST116') { // Record not found
-          console.log('User not found in users table, creating basic profile...');
-          return await createBasicUserProfile(userId, email);
+        // If user doesn't exist or has permission issues, upsert the profile
+        if (error.code === 'PGRST116' || error.code === '42501') {
+          console.log('User not found or permission denied, upserting profile...');
+          return await upsertUserProfile(userId, email);
         }
         
         return null;
