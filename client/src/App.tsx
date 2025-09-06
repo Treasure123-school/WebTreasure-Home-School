@@ -30,9 +30,37 @@ import TakeExam from "@/pages/student/TakeExam";
 
 import { queryClient } from "./lib/queryClient";
 
+// Protected Route Component for role-based access
+function ProtectedRoute({ children, requiredRole }: { 
+  children: React.ReactNode;
+  requiredRole?: string;
+}) {
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    setLocation('/login');
+    return null;
+  }
+
+  if (requiredRole && user.role_name !== requiredRole) {
+    setLocation('/unauthorized');
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const [location, setLocation] = useLocation();
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -52,110 +80,111 @@ function Router() {
       {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
-          {/* Redirect any other route to landing */}
-          <Route path="/:rest*">
-            {(params) => {
-              if (typeof params.rest === 'string' && params.rest.startsWith('login')) {
-                return <Login />;
-              }
-              return <Landing />;
-            }}
-          </Route>
+          {/* Show 404 for unknown routes instead of redirecting */}
+          <Route component={NotFound} />
         </>
       ) : (
         <>
-          {/* Protected routes */}
-          <Route path="/" component={Home} />
-          <Route path="/home" component={Home} />
+          {/* Protected routes - each route handles its own authentication */}
+          <Route path="/">
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          </Route>
           
-          {/* Dashboard routes */}
-          <Route path="/admin" component={AdminDashboard} />
-          <Route path="/teacher" component={TeacherDashboard} />
-          <Route path="/student" component={StudentDashboard} />
-          <Route path="/parent" component={ParentDashboard} />
+          <Route path="/home">
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          </Route>
+
+          {/* Dashboard routes - each handles its own role protection */}
+          <Route path="/admin">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          </Route>
           
-          {/* Admin Routes */}
-          {user?.role_name?.toLowerCase() === 'admin' && (
-            <>
-              <Route path="/admin/users" component={AdminUsers} />
-              <Route path="/admin/announcements" component={AdminAnnouncements} />
-              <Route path="/admin/gallery" component={AdminGallery} />
-              <Route path="/admin/exams" component={AdminExams} />
-              <Route path="/admin/enrollments" component={AdminEnrollments} />
-            </>
-          )}
+          <Route path="/admin/users">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminUsers />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/admin/announcements">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminAnnouncements />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/admin/gallery">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminGallery />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/admin/exams">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminExams />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/admin/enrollments">
+            <ProtectedRoute requiredRole="Admin">
+              <AdminEnrollments />
+            </ProtectedRoute>
+          </Route>
           
           {/* Teacher Routes */}
-          {user?.role_name?.toLowerCase() === 'teacher' && (
-            <>
-              <Route path="/teacher/exams" component={TeacherExams} />
-            </>
-          )}
+          <Route path="/teacher">
+            <ProtectedRoute requiredRole="Teacher">
+              <TeacherDashboard />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/teacher/exams">
+            <ProtectedRoute requiredRole="Teacher">
+              <TeacherExams />
+            </ProtectedRoute>
+          </Route>
           
           {/* Student Routes */}
-          {user?.role_name?.toLowerCase() === 'student' && (
-            <>
-              <Route path="/student/results" component={StudentResults} />
-              <Route path="/exam/:examId" component={TakeExam} />
-            </>
-          )}
+          <Route path="/student">
+            <ProtectedRoute requiredRole="Student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/student/results">
+            <ProtectedRoute requiredRole="Student">
+              <StudentResults />
+            </ProtectedRoute>
+          </Route>
+          
+          <Route path="/exam/:examId">
+            <ProtectedRoute>
+              <TakeExam />
+            </ProtectedRoute>
+          </Route>
           
           {/* Parent Routes */}
-          {user?.role_name?.toLowerCase() === 'parent' && (
-            <>
-              {/* Add parent specific routes here if needed */}
-            </>
-          )}
-          
-          {/* Shared routes */}
-          <Route path="/exam/:examId" component={ExamInterface} />
-          
-          {/* Role-based redirect for authenticated users */}
-          <Route path="/:rest*">
-            {(params) => {
-              // Don't redirect if it's an API route or static file
-              const path = params.rest || '';
-              if (path.startsWith('api/') || path.includes('.')) {
-                return <NotFound />;
-              }
-
-              // Redirect to appropriate dashboard based on role
-              const role = user?.role_name?.toLowerCase();
-              let redirectPath = '/';
-              
-              switch (role) {
-                case 'admin':
-                  redirectPath = '/admin';
-                  break;
-                case 'teacher':
-                  redirectPath = '/teacher';
-                  break;
-                case 'student':
-                  redirectPath = '/student';
-                  break;
-                case 'parent':
-                  redirectPath = '/parent';
-                  break;
-                default:
-                  redirectPath = '/';
-              }
-              
-              // Use client-side navigation instead of full page reload
-              if (location !== redirectPath) {
-                setLocation(redirectPath);
-              }
-              
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to your dashboard...</span>
-                </div>
-              );
-            }}
+          <Route path="/parent">
+            <ProtectedRoute requiredRole="Parent">
+              <ParentDashboard />
+            </ProtectedRoute>
           </Route>
+          
+          {/* Shared exam route */}
+          <Route path="/exam/:examId/interface">
+            <ProtectedRoute>
+              <ExamInterface />
+            </ProtectedRoute>
+          </Route>
+          
+          {/* 404 for all other routes - NO REDIRECTS */}
+          <Route component={NotFound} />
         </>
       )}
-      <Route component={NotFound} />
     </Switch>
   );
 }
