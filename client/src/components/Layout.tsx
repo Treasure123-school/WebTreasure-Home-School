@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import PublicHeader from "./PublicHeader";
-import PortalHeader from "./PortalHeader";
+import Navigation from "./Navigation"; // New navigation component
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,7 +16,7 @@ export default function Layout({ children, type = "public" }: LayoutProps) {
       {type === "public" ? (
         <PublicHeader />
       ) : (
-        <PortalHeader user={user} />
+        <Navigation />
       )}
       <main>{children}</main>
     </div>
