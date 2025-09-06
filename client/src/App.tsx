@@ -44,11 +44,11 @@ function Router() {
     <Switch>
       {/* Public routes */}
       <Route path="/login" component={Login} />
+      <Route path="/landing" component={Landing} />
       
       {!isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
-          <Route path="/landing" component={Landing} />
           {/* Redirect any other route to landing */}
           <Route path="/:rest*">
             {(params) => {
@@ -65,7 +65,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/home" component={Home} />
           
-          {/* Dashboard routes */}
+          {/* Dashboard routes - FIXED: No conflicting routes */}
           <Route path="/admin/dashboard" component={AdminDashboard} />
           <Route path="/teacher/dashboard" component={TeacherDashboard} />
           <Route path="/student/dashboard" component={StudentDashboard} />
@@ -107,92 +107,46 @@ function Router() {
             </>
           )}
           
-          {/* Shared routes accessible to all authenticated users */}
+          {/* Shared routes */}
           <Route path="/exam/:examId" component={ExamInterface} />
           
-          {/* Fallback for authenticated users accessing unauthorized routes */}
+          {/* Fallback for authenticated users */}
           <Route path="/:rest*">
             {(params) => {
               const path = params.rest || '';
               
-              // Check if user is trying to access their own dashboard without specific path
-              if (path === '' || path === 'dashboard') {
-                const role = user?.role_name?.toLowerCase();
-                let redirectUrl = '/';
-                
-                switch (role) {
-                  case 'admin':
-                    redirectUrl = '/admin/dashboard';
-                    break;
-                  case 'teacher':
-                    redirectUrl = '/teacher/dashboard';
-                    break;
-                  case 'student':
-                    redirectUrl = '/student/dashboard';
-                    break;
-                  case 'parent':
-                    redirectUrl = '/parent/dashboard';
-                    break;
-                  default:
-                    redirectUrl = '/';
-                }
-                
+              // Redirect to appropriate dashboard based on role
+              const role = user?.role_name?.toLowerCase();
+              let redirectUrl = '/';
+              
+              switch (role) {
+                case 'admin':
+                  redirectUrl = '/admin/dashboard';
+                  break;
+                case 'teacher':
+                  redirectUrl = '/teacher/dashboard';
+                  break;
+                case 'student':
+                  redirectUrl = '/student/dashboard';
+                  break;
+                case 'parent':
+                  redirectUrl = '/parent/dashboard';
+                  break;
+                default:
+                  redirectUrl = '/';
+              }
+              
+              // Use window.location for reliable redirect
+              if (typeof window !== 'undefined') {
                 window.location.href = redirectUrl;
-                return (
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span className="ml-2">Redirecting to your dashboard...</span>
-                  </div>
-                );
               }
               
-              // Handle unauthorized access to role-specific routes
-              if (path.startsWith('admin/') && user?.role_name?.toLowerCase() !== 'admin') {
-                return (
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-                      <p className="text-textSecondary">You don't have permission to access admin pages.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              if (path.startsWith('teacher/') && user?.role_name?.toLowerCase() !== 'teacher') {
-                return (
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-                      <p className="text-textSecondary">You don't have permission to access teacher pages.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              if (path.startsWith('student/') && user?.role_name?.toLowerCase() !== 'student') {
-                return (
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-                      <p className="text-textSecondary">You don't have permission to access student pages.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              if (path.startsWith('parent/') && user?.role_name?.toLowerCase() !== 'parent') {
-                return (
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h2 className="text-2xl font-bold text-destructive mb-2">Access Denied</h2>
-                      <p className="text-textSecondary">You don't have permission to access parent pages.</p>
-                    </div>
-                  </div>
-                );
-              }
-              
-              // If route doesn't exist, show not found
-              return <NotFound />;
+              return (
+                <div className="min-h-screen flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-2">Redirecting to your dashboard...</span>
+                </div>
+              );
             }}
           </Route>
         </>
