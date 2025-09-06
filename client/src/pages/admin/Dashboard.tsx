@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabaseClient"; // Import supabase client
+import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -16,156 +16,162 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useLocation } from "wouter";
 
-export default function AdminDashboard() {
-  const { user, isLoading } = useAuth();
+interface User { 
+  id: string; 
+  email: string; 
+  full_name: string; 
+  role_name: string; 
+}
+
+interface Announcement { 
+  id: string; 
+  title: string; 
+  created_at: string; 
+}
+
+interface Exam { 
+  id: string; 
+  title: string; 
+  created_at: string; 
+}
+
+interface Enrollment { 
+  id: string; 
+  child_name: string; 
+  parent_name: string; 
+  child_age: number; 
+  status: string; 
+  created_at: string; 
+}
+
+interface Message { 
+  id: string; 
+  name: string; 
+  email: string; 
+  message: string; 
+  created_at: string; 
+}
+
+interface Gallery { 
+  id: string; 
+  caption: string; 
+  created_at: string; 
+}
+
+export default function AdminDashboard() { 
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const [stats, setStats] = useState({ 
+    totalUsers: 0, 
+    activeExams: 0, 
+    announcements: 0, 
+    pendingEnrollments: 0, 
+    galleryImages: 0, 
+    messages: 0 
+  });
 
-  // Redirect if not authenticated or not admin
-  useEffect(() => {
-    if (!isLoading) {
-      if (!user) {
-        toast({
-          title: "Unauthorized",
-          description: "Please log in to access this page",
-          variant: "destructive",
-        });
-        setLocation('/login');
-        return;
-      }
-      
-      // Check for role_name instead of role
-      if (user.role_name !== 'Admin') {
-        toast({
-          title: "Access Denied",
-          description: "You need admin privileges to access this page",
-          variant: "destructive",
-        });
-        setLocation('/unauthorized');
-        return;
-      }
-    }
-  }, [user, isLoading, toast, setLocation]);
-
-  // Fetch users directly from Supabase
-  const { data: users = [] } = useQuery({
-    queryKey: ['users'],
+  // Fetch all data for dashboard
+  const { data: dashboardData, isLoading: dataLoading } = useQuery({
+    queryKey: ['admin-dashboard'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, full_name, role_id, roles(role_name)');
-      
-      if (error) {
-        console.error('Error fetching users:', error);
+      try {
+        // Fetch users
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('id, email, full_name, roles(role_name)')
+          .order('created_at', { ascending: false });
+
+        if (usersError) throw usersError;
+
+        // Fetch announcements
+        const { data: announcementsData, error: announcementsError } = await supabase
+          .from('announcements')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false });
+
+        if (announcementsError) throw announcementsError;
+
+        // Fetch exams
+        const { data: examsData, error: examsError } = await supabase
+          .from('exams')
+          .select('id, title, created_at')
+          .order('created_at', { ascending: false });
+
+        if (examsError) throw examsError;
+
+        // Fetch enrollments
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select('id, child_name, parent_name, child_age, status, created_at')
+          .order('created_at', { ascending: false });
+
+        if (enrollmentsError) throw enrollmentsError;
+
+        // Fetch messages
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('id, name, email, message, created_at')
+          .order('created_at', { ascending: false });
+
+        if (messagesError) throw messagesError;
+
+        // Fetch gallery
+        const { data: galleryData, error: galleryError } = await supabase
+          .from('gallery')
+          .select('id, caption, created_at')
+          .order('created_at', { ascending: false });
+
+        if (galleryError) throw galleryError;
+
+        return {
+          users: usersData?.map(user => ({
+            ...user,
+            role_name: user.roles?.role_name || 'Unknown'
+          })) || [],
+          announcements: announcementsData || [],
+          exams: examsData || [],
+          enrollments: enrollmentsData || [],
+          messages: messagesData || [],
+          gallery: galleryData || []
+        };
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
         toast({
           title: "Error",
-          description: "Failed to load users",
+          description: "Failed to load dashboard data",
           variant: "destructive",
         });
-        return [];
+        return {
+          users: [],
+          announcements: [],
+          exams: [],
+          enrollments: [],
+          messages: [],
+          gallery: []
+        };
       }
-      
-      return data.map(user => ({
-        ...user,
-        role_name: user.roles?.role_name || 'Unknown'
-      }));
     },
-    enabled: !!user && user.role_name === 'Admin',
+    enabled: !!user // Removed role check since ProtectedRoute handles it
   });
 
-  // Fetch announcements directly from Supabase
-  const { data: announcements = [] } = useQuery({
-    queryKey: ['announcements'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('announcements')
-        .select('id, title, created_at');
+  // Calculate stats when data loads
+  useEffect(() => {
+    if (dashboardData) {
+      const pendingEnrollments = dashboardData.enrollments.filter((e: Enrollment) => e.status === 'pending');
       
-      if (error) {
-        console.error('Error fetching announcements:', error);
-        return [];
-      }
-      
-      return data;
-    },
-    enabled: !!user && user.role_name === 'Admin',
-  });
+      setStats({
+        totalUsers: dashboardData.users.length,
+        activeExams: dashboardData.exams.length,
+        announcements: dashboardData.announcements.length,
+        pendingEnrollments: pendingEnrollments.length,
+        galleryImages: dashboardData.gallery.length,
+        messages: dashboardData.messages.length
+      });
+    }
+  }, [dashboardData]);
 
-  // Fetch exams directly from Supabase
-  const { data: exams = [] } = useQuery({
-    queryKey: ['exams'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('exams')
-        .select('id, title, created_at');
-      
-      if (error) {
-        console.error('Error fetching exams:', error);
-        return [];
-      }
-      
-      return data;
-    },
-    enabled: !!user && user.role_name === 'Admin',
-  });
-
-  // Fetch enrollments directly from Supabase
-  const { data: enrollments = [] } = useQuery({
-    queryKey: ['enrollments'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('enrollments')
-        .select('id, child_name, parent_name, child_age, status, created_at');
-      
-      if (error) {
-        console.error('Error fetching enrollments:', error);
-        return [];
-      }
-      
-      return data;
-    },
-    enabled: !!user && user.role_name === 'Admin',
-  });
-
-  // Fetch messages directly from Supabase
-  const { data: messages = [] } = useQuery({
-    queryKey: ['messages'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('id, name, email, message, created_at');
-      
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return [];
-      }
-      
-      return data;
-    },
-    enabled: !!user && user.role_name === 'Admin',
-  });
-
-  // Fetch gallery directly from Supabase
-  const { data: gallery = [] } = useQuery({
-    queryKey: ['gallery'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('gallery')
-        .select('id, caption, created_at');
-      
-      if (error) {
-        console.error('Error fetching gallery:', error);
-        return [];
-      }
-      
-      return data;
-    },
-    enabled: !!user && user.role_name === 'Admin',
-  });
-
-  if (isLoading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -173,17 +179,15 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!user || user.role_name !== 'Admin') {
-    return null; // Will redirect in useEffect
-  }
-
-  const pendingEnrollments = enrollments.filter((e: any) => e.status === 'pending');
   const usersByRole = {
-    admin: users.filter((u: any) => u.role_name === 'Admin'),
-    teacher: users.filter((u: any) => u.role_name === 'Teacher'),
-    student: users.filter((u: any) => u.role_name === 'Student'),
-    parent: users.filter((u: any) => u.role_name === 'Parent'),
+    admin: dashboardData?.users.filter((u: User) => u.role_name === 'Admin') || [],
+    teacher: dashboardData?.users.filter((u: User) => u.role_name === 'Teacher') || [],
+    student: dashboardData?.users.filter((u: User) => u.role_name === 'Student') || [],
+    parent: dashboardData?.users.filter((u: User) => u.role_name === 'Parent') || [],
   };
+
+  const pendingEnrollments = dashboardData?.enrollments.filter((e: Enrollment) => e.status === 'pending') || [];
+  const recentMessages = dashboardData?.messages.slice(0, 5) || [];
 
   return (
     <Layout type="portal">
@@ -193,7 +197,7 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-textSecondary mt-2">
-            Welcome back, {user.full_name}! Here's an overview of your school management system.
+            Welcome back, {user?.full_name}! Here's an overview of your school management system.
           </p>
         </div>
 
@@ -203,7 +207,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{users.length}</div>
+                  <div className="text-3xl font-bold">{stats.totalUsers}</div>
                   <div className="text-blue-100">Total Users</div>
                 </div>
                 <Users className="h-12 w-12 text-blue-200" />
@@ -215,7 +219,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{exams.length}</div>
+                  <div className="text-3xl font-bold">{stats.activeExams}</div>
                   <div className="text-green-100">Active Exams</div>
                 </div>
                 <GraduationCap className="h-12 w-12 text-green-200" />
@@ -227,7 +231,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{announcements.length}</div>
+                  <div className="text-3xl font-bold">{stats.announcements}</div>
                   <div className="text-orange-100">Announcements</div>
                 </div>
                 <Megaphone className="h-12 w-12 text-orange-200" />
@@ -239,7 +243,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{pendingEnrollments.length}</div>
+                  <div className="text-3xl font-bold">{stats.pendingEnrollments}</div>
                   <div className="text-purple-100">Pending Enrollments</div>
                 </div>
                 <UserPlus className="h-12 w-12 text-purple-200" />
@@ -291,28 +295,28 @@ export default function AdminDashboard() {
                     <Camera className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Gallery Images</span>
                   </div>
-                  <Badge variant="outline">{gallery.length}</Badge>
+                  <Badge variant="outline">{stats.galleryImages}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <MessageSquare className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Messages</span>
                   </div>
-                  <Badge variant="outline">{messages.length}</Badge>
+                  <Badge variant="outline">{stats.messages}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <BookOpen className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Total Exams</span>
                   </div>
-                  <Badge variant="outline">{exams.length}</Badge>
+                  <Badge variant="outline">{stats.activeExams}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <FileText className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Active Announcements</span>
                   </div>
-                  <Badge variant="outline">{announcements.length}</Badge>
+                  <Badge variant="outline">{stats.announcements}</Badge>
                 </div>
               </div>
             </CardContent>
@@ -331,7 +335,7 @@ export default function AdminDashboard() {
                 <p className="text-textSecondary text-center py-4">No pending enrollment requests</p>
               ) : (
                 <div className="space-y-4">
-                  {pendingEnrollments.slice(0, 5).map((enrollment: any) => (
+                  {pendingEnrollments.slice(0, 5).map((enrollment: Enrollment) => (
                     <div key={enrollment.id} className="flex items-center justify-between p-3 bg-backgroundSurface rounded-lg">
                       <div>
                         <div className="font-medium text-textPrimary">{enrollment.child_name}</div>
@@ -358,11 +362,11 @@ export default function AdminDashboard() {
               <CardTitle>Recent Messages</CardTitle>
             </CardHeader>
             <CardContent>
-              {messages.length === 0 ? (
+              {recentMessages.length === 0 ? (
                 <p className="text-textSecondary text-center py-4">No messages received</p>
               ) : (
                 <div className="space-y-4">
-                  {messages.slice(0, 5).map((message: any) => (
+                  {recentMessages.map((message: Message) => (
                     <div key={message.id} className="p-3 bg-backgroundSurface rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium text-textPrimary">{message.name}</div>
