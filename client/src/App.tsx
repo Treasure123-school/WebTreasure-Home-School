@@ -6,12 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
-import AdminDashboard from "@/pages/admin-dashboard";
+import AdminDashboard from "@/pages/admin/Dashboard"; // Fixed import path
 import TeacherDashboard from "@/pages/teacher-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import ParentDashboard from "@/pages/parent-dashboard";
 import ExamInterface from "@/pages/exam-interface";
 import Login from "@/pages/Login";
+import Unauthorized from "@/pages/unauthorized"; // Add this import
 
 // Admin pages
 import AdminUsers from "@/pages/admin/Users";
@@ -45,6 +46,7 @@ function Router() {
       {/* Public routes */}
       <Route path="/login" component={Login} />
       <Route path="/landing" component={Landing} />
+      <Route path="/unauthorized" component={Unauthorized} />
       
       {!isAuthenticated ? (
         <>
@@ -65,16 +67,15 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/home" component={Home} />
           
-          {/* Dashboard routes - FIXED: No conflicting routes */}
-          <Route path="/admin/dashboard" component={AdminDashboard} />
-          <Route path="/teacher/dashboard" component={TeacherDashboard} />
-          <Route path="/student/dashboard" component={StudentDashboard} />
-          <Route path="/parent/dashboard" component={ParentDashboard} />
+          {/* Dashboard routes - Fixed to match your admin page redirects */}
+          <Route path="/admin" component={AdminDashboard} />
+          <Route path="/teacher" component={TeacherDashboard} />
+          <Route path="/student" component={StudentDashboard} />
+          <Route path="/parent" component={ParentDashboard} />
           
           {/* Admin Routes */}
           {user?.role_name?.toLowerCase() === 'admin' && (
             <>
-              <Route path="/admin" component={AdminDashboard} />
               <Route path="/admin/users" component={AdminUsers} />
               <Route path="/admin/announcements" component={AdminAnnouncements} />
               <Route path="/admin/gallery" component={AdminGallery} />
@@ -86,7 +87,6 @@ function Router() {
           {/* Teacher Routes */}
           {user?.role_name?.toLowerCase() === 'teacher' && (
             <>
-              <Route path="/teacher" component={TeacherDashboard} />
               <Route path="/teacher/exams" component={TeacherExams} />
             </>
           )}
@@ -94,7 +94,6 @@ function Router() {
           {/* Student Routes */}
           {user?.role_name?.toLowerCase() === 'student' && (
             <>
-              <Route path="/student" component={StudentDashboard} />
               <Route path="/student/results" component={StudentResults} />
               <Route path="/exam/:examId" component={TakeExam} />
             </>
@@ -103,42 +102,46 @@ function Router() {
           {/* Parent Routes */}
           {user?.role_name?.toLowerCase() === 'parent' && (
             <>
-              <Route path="/parent" component={ParentDashboard} />
+              {/* Add parent specific routes here if needed */}
             </>
           )}
           
           {/* Shared routes */}
           <Route path="/exam/:examId" component={ExamInterface} />
           
-          {/* Fallback for authenticated users */}
+          {/* Role-based redirect for authenticated users */}
           <Route path="/:rest*">
             {(params) => {
+              // Don't redirect if it's an API route or static file
               const path = params.rest || '';
-              
+              if (path.startsWith('api/') || path.includes('.')) {
+                return <NotFound />;
+              }
+
               // Redirect to appropriate dashboard based on role
               const role = user?.role_name?.toLowerCase();
-              let redirectUrl = '/';
+              let redirectPath = '/';
               
               switch (role) {
                 case 'admin':
-                  redirectUrl = '/admin/dashboard';
+                  redirectPath = '/admin';
                   break;
                 case 'teacher':
-                  redirectUrl = '/teacher/dashboard';
+                  redirectPath = '/teacher';
                   break;
                 case 'student':
-                  redirectUrl = '/student/dashboard';
+                  redirectPath = '/student';
                   break;
                 case 'parent':
-                  redirectUrl = '/parent/dashboard';
+                  redirectPath = '/parent';
                   break;
                 default:
-                  redirectUrl = '/';
+                  redirectPath = '/';
               }
               
-              // Use window.location for reliable redirect
-              if (typeof window !== 'undefined') {
-                window.location.href = redirectUrl;
+              // Use client-side redirect
+              if (typeof window !== 'undefined' && window.location.pathname !== redirectPath) {
+                window.location.href = redirectPath;
               }
               
               return (
