@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,13 +6,13 @@ import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
-import AdminDashboard from "@/pages/admin/Dashboard"; // Fixed import path
+import AdminDashboard from "@/pages/admin/Dashboard";
 import TeacherDashboard from "@/pages/teacher-dashboard";
 import StudentDashboard from "@/pages/student-dashboard";
 import ParentDashboard from "@/pages/parent-dashboard";
 import ExamInterface from "@/pages/exam-interface";
 import Login from "@/pages/Login";
-import Unauthorized from "@/pages/unauthorized"; // Add this import
+import Unauthorized from "@/pages/unauthorized";
 
 // Admin pages
 import AdminUsers from "@/pages/admin/Users";
@@ -32,6 +32,7 @@ import { queryClient } from "./lib/queryClient";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
+  const [location, setLocation] = useLocation();
 
   if (isLoading) {
     return (
@@ -67,7 +68,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/home" component={Home} />
           
-          {/* Dashboard routes - Fixed to match your admin page redirects */}
+          {/* Dashboard routes */}
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/teacher" component={TeacherDashboard} />
           <Route path="/student" component={StudentDashboard} />
@@ -139,9 +140,9 @@ function Router() {
                   redirectPath = '/';
               }
               
-              // Use client-side redirect
-              if (typeof window !== 'undefined' && window.location.pathname !== redirectPath) {
-                window.location.href = redirectPath;
+              // Use client-side navigation instead of full page reload
+              if (location !== redirectPath) {
+                setLocation(redirectPath);
               }
               
               return (
