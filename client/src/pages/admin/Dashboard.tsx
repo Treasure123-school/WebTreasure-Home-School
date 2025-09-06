@@ -15,63 +15,76 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useLocation } from "wouter";
 
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+    if (!isLoading) {
+      if (!user) {
+        toast({
+          title: "Unauthorized",
+          description: "Please log in to access this page",
+          variant: "destructive",
+        });
+        setLocation('/login');
+        return;
+      }
+      
+      // Check for role_name instead of role
+      if (user.role_name !== 'Admin') {
+        toast({
+          title: "Access Denied",
+          description: "You need admin privileges to access this page",
+          variant: "destructive",
+        });
+        setLocation('/unauthorized');
+        return;
+      }
     }
-  }, [user, isLoading, toast]);
+  }, [user, isLoading, toast, setLocation]);
 
   const { data: users = [] } = useQuery({
     queryKey: ['/api/users'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
   const { data: announcements = [] } = useQuery({
     queryKey: ['/api/announcements'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
   const { data: exams = [] } = useQuery({
     queryKey: ['/api/exams'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
   const { data: enrollments = [] } = useQuery({
     queryKey: ['/api/enrollments'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ['/api/messages'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
   const { data: gallery = [] } = useQuery({
     queryKey: ['/api/gallery'],
-    enabled: !!user && user.role === 'admin',
+    enabled: !!user && user.role_name === 'Admin',
     retry: false,
   });
 
-  if (isLoading || !user) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -79,12 +92,16 @@ export default function AdminDashboard() {
     );
   }
 
+  if (!user || user.role_name !== 'Admin') {
+    return null; // Will redirect in useEffect
+  }
+
   const pendingEnrollments = enrollments.filter((e: any) => e.status === 'pending');
   const usersByRole = {
-    admin: users.filter((u: any) => u.role === 'admin'),
-    teacher: users.filter((u: any) => u.role === 'teacher'),
-    student: users.filter((u: any) => u.role === 'student'),
-    parent: users.filter((u: any) => u.role === 'parent'),
+    admin: users.filter((u: any) => u.role === 'admin' || u.role_name === 'Admin'),
+    teacher: users.filter((u: any) => u.role === 'teacher' || u.role_name === 'Teacher'),
+    student: users.filter((u: any) => u.role === 'student' || u.role_name === 'Student'),
+    parent: users.filter((u: any) => u.role === 'parent' || u.role_name === 'Parent'),
   };
 
   return (
@@ -95,7 +112,7 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-textSecondary mt-2">
-            Welcome back, {user.firstName}! Here's an overview of your school management system.
+            Welcome back, {user.full_name}! Here's an overview of your school management system.
           </p>
         </div>
 
