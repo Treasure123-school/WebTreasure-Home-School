@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabaseClient"; // Import supabase client
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
@@ -48,40 +49,120 @@ export default function AdminDashboard() {
     }
   }, [user, isLoading, toast, setLocation]);
 
+  // Fetch users directly from Supabase
   const { data: users = [] } = useQuery({
-    queryKey: ['/api/users'],
+    queryKey: ['users'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, full_name, role_id, roles(role_name)');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load users",
+          variant: "destructive",
+        });
+        return [];
+      }
+      
+      return data.map(user => ({
+        ...user,
+        role_name: user.roles?.role_name || 'Unknown'
+      }));
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
+  // Fetch announcements directly from Supabase
   const { data: announcements = [] } = useQuery({
-    queryKey: ['/api/announcements'],
+    queryKey: ['announcements'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('id, title, created_at');
+      
+      if (error) {
+        console.error('Error fetching announcements:', error);
+        return [];
+      }
+      
+      return data;
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
+  // Fetch exams directly from Supabase
   const { data: exams = [] } = useQuery({
-    queryKey: ['/api/exams'],
+    queryKey: ['exams'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('id, title, created_at');
+      
+      if (error) {
+        console.error('Error fetching exams:', error);
+        return [];
+      }
+      
+      return data;
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
+  // Fetch enrollments directly from Supabase
   const { data: enrollments = [] } = useQuery({
-    queryKey: ['/api/enrollments'],
+    queryKey: ['enrollments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select('id, child_name, parent_name, child_age, status, created_at');
+      
+      if (error) {
+        console.error('Error fetching enrollments:', error);
+        return [];
+      }
+      
+      return data;
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
+  // Fetch messages directly from Supabase
   const { data: messages = [] } = useQuery({
-    queryKey: ['/api/messages'],
+    queryKey: ['messages'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, name, email, message, created_at');
+      
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return [];
+      }
+      
+      return data;
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
+  // Fetch gallery directly from Supabase
   const { data: gallery = [] } = useQuery({
-    queryKey: ['/api/gallery'],
+    queryKey: ['gallery'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('id, caption, created_at');
+      
+      if (error) {
+        console.error('Error fetching gallery:', error);
+        return [];
+      }
+      
+      return data;
+    },
     enabled: !!user && user.role_name === 'Admin',
-    retry: false,
   });
 
   if (isLoading) {
@@ -98,10 +179,10 @@ export default function AdminDashboard() {
 
   const pendingEnrollments = enrollments.filter((e: any) => e.status === 'pending');
   const usersByRole = {
-    admin: users.filter((u: any) => u.role === 'admin' || u.role_name === 'Admin'),
-    teacher: users.filter((u: any) => u.role === 'teacher' || u.role_name === 'Teacher'),
-    student: users.filter((u: any) => u.role === 'student' || u.role_name === 'Student'),
-    parent: users.filter((u: any) => u.role === 'parent' || u.role_name === 'Parent'),
+    admin: users.filter((u: any) => u.role_name === 'Admin'),
+    teacher: users.filter((u: any) => u.role_name === 'Teacher'),
+    student: users.filter((u: any) => u.role_name === 'Student'),
+    parent: users.filter((u: any) => u.role_name === 'Parent'),
   };
 
   return (
@@ -253,9 +334,9 @@ export default function AdminDashboard() {
                   {pendingEnrollments.slice(0, 5).map((enrollment: any) => (
                     <div key={enrollment.id} className="flex items-center justify-between p-3 bg-backgroundSurface rounded-lg">
                       <div>
-                        <div className="font-medium text-textPrimary">{enrollment.childName}</div>
+                        <div className="font-medium text-textPrimary">{enrollment.child_name}</div>
                         <div className="text-sm text-textSecondary">
-                          Parent: {enrollment.parentName} • Age: {enrollment.childAge}
+                          Parent: {enrollment.parent_name} • Age: {enrollment.child_age}
                         </div>
                       </div>
                       <Badge 
@@ -286,7 +367,7 @@ export default function AdminDashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-medium text-textPrimary">{message.name}</div>
                         <div className="text-xs text-textSecondary">
-                          {new Date(message.createdAt).toLocaleDateString()}
+                          {new Date(message.created_at).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="text-sm text-textSecondary line-clamp-2">
