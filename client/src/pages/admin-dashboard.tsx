@@ -16,7 +16,6 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useLocation } from "wouter";
 
 interface User { 
   id: string; 
@@ -61,9 +60,8 @@ interface Gallery {
 }
 
 export default function AdminDashboard() { 
-  const { user, isLoading: authLoading } = useAuth();
+  const { user } = useAuth(); // Removed authLoading since ProtectedRoute handles it
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [stats, setStats] = useState({ 
     totalUsers: 0, 
     activeExams: 0, 
@@ -72,32 +70,6 @@ export default function AdminDashboard() {
     galleryImages: 0, 
     messages: 0 
   });
-
-  // Redirect if not authenticated or not admin
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user) {
-        toast({
-          title: "Unauthorized",
-          description: "Please log in to access this page",
-          variant: "destructive",
-        });
-        setLocation('/login');
-        return;
-      }
-      
-      // Check for role_name (case-sensitive)
-      if (user.role_name !== 'Admin') {
-        toast({
-          title: "Access Denied",
-          description: "You need admin privileges to access this page",
-          variant: "destructive",
-        });
-        setLocation('/unauthorized');
-        return;
-      }
-    }
-  }, [user, authLoading, toast, setLocation]);
 
   // Fetch all data for dashboard
   const { data: dashboardData, isLoading: dataLoading } = useQuery({
@@ -180,7 +152,7 @@ export default function AdminDashboard() {
         };
       }
     },
-    enabled: !!user && user.role_name === 'Admin'
+    enabled: !!user // Removed role check since ProtectedRoute handles it
   });
 
   // Calculate stats when data loads
@@ -199,16 +171,12 @@ export default function AdminDashboard() {
     }
   }, [dashboardData]);
 
-  if (authLoading || dataLoading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
-  }
-
-  if (!user || user.role_name !== 'Admin') {
-    return null; // Will redirect in useEffect
   }
 
   const usersByRole = {
@@ -229,7 +197,7 @@ export default function AdminDashboard() {
             Admin Dashboard
           </h1>
           <p className="text-textSecondary mt-2">
-            Welcome back, {user.full_name}! Here's an overview of your school management system.
+            Welcome back, {user?.full_name}! Here's an overview of your school management system.
           </p>
         </div>
 
