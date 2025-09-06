@@ -22,66 +22,11 @@ export function useAuth() {
     return Promise.race([promise, timeout]);
   };
 
-  // Function to create admin user if it doesn't exist
-  const ensureAdminUserExists = async (userId: string, email: string) => {
-    try {
-      console.log('Ensuring admin user exists:', email);
-      
-      // First, try to get the Admin role ID
-      const { data: role, error: roleError } = await withTimeout(
-        supabase.from('roles').select('id').eq('role_name', 'Admin').single()
-      );
-
-      if (roleError) {
-        console.error('Error fetching Admin role:', roleError);
-        return 1; // Fallback to role_id 1
-      }
-
-      // Check if admin user already exists
-      const { data: existingUser, error: checkError } = await withTimeout(
-        supabase.from('users').select('id').eq('id', userId).maybeSingle()
-      );
-
-      if (checkError) {
-        console.error('Error checking if admin exists:', checkError);
-      }
-
-      // If admin user doesn't exist, create it
-      if (!existingUser) {
-        console.log('Creating admin user in database...');
-        const { error: insertError } = await withTimeout(
-          supabase.from('users').insert({
-            id: userId,
-            email: email,
-            full_name: 'Admin User',
-            role_id: role.id
-          })
-        );
-
-        if (insertError) {
-          console.error('Error creating admin user:', insertError);
-        } else {
-          console.log('Admin user created successfully');
-        }
-      }
-
-      return role.id;
-    } catch (error) {
-      console.error('Exception in ensureAdminUserExists:', error);
-      return 1; // Fallback to role_id 1
-    }
-  };
-
   // Single query to get user data with role
   const fetchUserWithRole = async (userId: string, email: string) => {
     try {
       console.log('Fetching user profile for:', userId);
       
-      // For admin user, ensure it exists first
-      if (email === 'admin@treasure.edu') {
-        await ensureAdminUserExists(userId, email);
-      }
-
       // Try to fetch user data with timeout
       const { data, error } = await withTimeout(
         supabase.from('users').select(`
@@ -97,25 +42,12 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching user profile:', error);
         
-        // If user doesn't exist, create a basic profile
-        if (error.code === 'PGRST116') {
-          console.log('User not found, creating basic profile...');
-          const roleId = await ensureAdminUserExists(userId, email);
-          return { 
-            id: userId, 
-            email, 
-            full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
-            role_id: roleId,
-            roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
-          };
-        }
-        
-        // For permission errors or other issues, return fallback data
+        // If user doesn't exist or other error, return fallback data
         return { 
           id: userId, 
           email, 
           full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
-          role_id: 1,
+          role_id: email === 'admin@treasure.edu' ? 1 : 3, // 1=Admin, 3=Student
           roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
         };
       }
@@ -129,7 +61,7 @@ export function useAuth() {
         id: userId, 
         email, 
         full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
-        role_id: 1,
+        role_id: email === 'admin@treasure.edu' ? 1 : 3, // 1=Admin, 3=Student
         roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
       };
     }
@@ -244,6 +176,9 @@ export function useAuth() {
           console.log('User signed out');
           setUser(null);
           setLocation('/login');
+        } else if (event === 'INITIAL_SESSION' && session) {
+          console.log('Initial session found, processing user data');
+          await processUserAuth(session.user);
         }
       }
     );
