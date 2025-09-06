@@ -49,10 +49,9 @@ function Router() {
         <>
           <Route path="/" component={Landing} />
           <Route path="/landing" component={Landing} />
-          {/* Redirect any other route to login */}
+          {/* Redirect any other route to landing */}
           <Route path="/:rest*">
             {(params) => {
-              // Don't redirect if already on login page
               if (typeof params.rest === 'string' && params.rest.startsWith('login')) {
                 return <Login />;
               }
@@ -111,61 +110,43 @@ function Router() {
           {/* Shared routes accessible to all authenticated users */}
           <Route path="/exam/:examId" component={ExamInterface} />
           
-          {/* Redirect handlers for dashboard routes */}
-          <Route path="/admin">
-            {() => {
-              window.location.href = '/admin/dashboard';
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to Admin Dashboard...</span>
-                </div>
-              );
-            }}
-          </Route>
-          
-          <Route path="/teacher">
-            {() => {
-              window.location.href = '/teacher/dashboard';
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to Teacher Dashboard...</span>
-                </div>
-              );
-            }}
-          </Route>
-          
-          <Route path="/student">
-            {() => {
-              window.location.href = '/student/dashboard';
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to Student Dashboard...</span>
-                </div>
-              );
-            }}
-          </Route>
-          
-          <Route path="/parent">
-            {() => {
-              window.location.href = '/parent/dashboard';
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to Parent Dashboard...</span>
-                </div>
-              );
-            }}
-          </Route>
-          
           {/* Fallback for authenticated users accessing unauthorized routes */}
           <Route path="/:rest*">
             {(params) => {
-              // Check if the user is trying to access a role-specific route they don't have access to
               const path = params.rest || '';
               
+              // Check if user is trying to access their own dashboard without specific path
+              if (path === '' || path === 'dashboard') {
+                const role = user?.role_name?.toLowerCase();
+                let redirectUrl = '/';
+                
+                switch (role) {
+                  case 'admin':
+                    redirectUrl = '/admin/dashboard';
+                    break;
+                  case 'teacher':
+                    redirectUrl = '/teacher/dashboard';
+                    break;
+                  case 'student':
+                    redirectUrl = '/student/dashboard';
+                    break;
+                  case 'parent':
+                    redirectUrl = '/parent/dashboard';
+                    break;
+                  default:
+                    redirectUrl = '/';
+                }
+                
+                window.location.href = redirectUrl;
+                return (
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-2">Redirecting to your dashboard...</span>
+                  </div>
+                );
+              }
+              
+              // Handle unauthorized access to role-specific routes
               if (path.startsWith('admin/') && user?.role_name?.toLowerCase() !== 'admin') {
                 return (
                   <div className="min-h-screen flex items-center justify-center">
@@ -210,35 +191,8 @@ function Router() {
                 );
               }
               
-              // Redirect to appropriate dashboard based on role
-              const role = user?.role_name?.toLowerCase();
-              let redirectUrl = '/';
-              
-              switch (role) {
-                case 'admin':
-                  redirectUrl = '/admin/dashboard';
-                  break;
-                case 'teacher':
-                  redirectUrl = '/teacher/dashboard';
-                  break;
-                case 'student':
-                  redirectUrl = '/student/dashboard';
-                  break;
-                case 'parent':
-                  redirectUrl = '/parent/dashboard';
-                  break;
-                default:
-                  redirectUrl = '/';
-              }
-              
-              window.location.href = redirectUrl;
-              
-              return (
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-2">Redirecting to your dashboard...</span>
-                </div>
-              );
+              // If route doesn't exist, show not found
+              return <NotFound />;
             }}
           </Route>
         </>
