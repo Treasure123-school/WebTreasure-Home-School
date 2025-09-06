@@ -22,53 +22,53 @@ export function useAuth() {
     return Promise.race([promise, timeout]);
   };
 
-  // Function to create or update user profile
-  const upsertUserProfile = async (userId: string, email: string) => {
+  // Function to create admin user if it doesn't exist
+  const ensureAdminUserExists = async (userId: string, email: string) => {
     try {
-      console.log('Upserting user profile for:', email);
+      console.log('Ensuring admin user exists:', email);
       
-      // For admin@treasure.edu, always use Admin role
-      const roleName = email === 'admin@treasure.edu' ? 'Admin' : 'Student';
-
-      // Get the role ID with timeout
+      // First, try to get the Admin role ID
       const { data: role, error: roleError } = await withTimeout(
-        supabase.from('roles').select('id').eq('role_name', roleName).single()
+        supabase.from('roles').select('id').eq('role_name', 'Admin').single()
       );
 
       if (roleError) {
-        console.error('Error fetching role:', roleError);
-        // Fallback to role_id = 1 (assuming Admin is first)
-        return { id: userId, email, full_name: 'Admin User', role_id: 1, roles: { role_name: 'Admin' } };
+        console.error('Error fetching Admin role:', roleError);
+        return 1; // Fallback to role_id 1
       }
 
-      // Use UPSERT to handle both insert and update cases
-      const { data: userData, error: upsertError } = await withTimeout(
-        supabase.from('users').upsert({
-          id: userId,
-          email: email,
-          full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
-          role_id: role.id
-        }).select(`
-          id,
-          role_id,
-          full_name,
-          email,
-          roles (role_name)
-        `).single()
+      // Check if admin user already exists
+      const { data: existingUser, error: checkError } = await withTimeout(
+        supabase.from('users').select('id').eq('id', userId).maybeSingle()
       );
 
-      if (upsertError) {
-        console.error('Error upserting user profile:', upsertError);
-        // Return fallback user data
-        return { id: userId, email, full_name: 'Admin User', role_id: 1, roles: { role_name: 'Admin' } };
+      if (checkError) {
+        console.error('Error checking if admin exists:', checkError);
       }
 
-      console.log('User profile upserted successfully:', userData);
-      return userData;
+      // If admin user doesn't exist, create it
+      if (!existingUser) {
+        console.log('Creating admin user in database...');
+        const { error: insertError } = await withTimeout(
+          supabase.from('users').insert({
+            id: userId,
+            email: email,
+            full_name: 'Admin User',
+            role_id: role.id
+          })
+        );
+
+        if (insertError) {
+          console.error('Error creating admin user:', insertError);
+        } else {
+          console.log('Admin user created successfully');
+        }
+      }
+
+      return role.id;
     } catch (error) {
-      console.error('Exception in upsertUserProfile:', error);
-      // Return fallback user data
-      return { id: userId, email, full_name: 'Admin User', role_id: 1, roles: { role_name: 'Admin' } };
+      console.error('Exception in ensureAdminUserExists:', error);
+      return 1; // Fallback to role_id 1
     }
   };
 
@@ -77,20 +77,9 @@ export function useAuth() {
     try {
       console.log('Fetching user profile for:', userId);
       
-      // First, test if we can access the database
-      try {
-        const { error: testError } = await withTimeout(
-          supabase.from('roles').select('count').limit(1),
-          3000
-        );
-        
-        if (testError) {
-          console.log('Database access failed, using fallback');
-          throw new Error('Database unavailable');
-        }
-      } catch (testError) {
-        console.log('Database test failed, using fallback data');
-        return await upsertUserProfile(userId, email);
+      // For admin user, ensure it exists first
+      if (email === 'admin@treasure.edu') {
+        await ensureAdminUserExists(userId, email);
       }
 
       // Try to fetch user data with timeout
@@ -108,14 +97,27 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching user profile:', error);
         
-        // If user doesn't exist or has permission issues, upsert the profile
-        if (error.code === 'PGRST116' || error.code === '42501') {
-          console.log('User not found or permission denied, upserting profile...');
-          return await upsertUserProfile(userId, email);
+        // If user doesn't exist, create a basic profile
+        if (error.code === 'PGRST116') {
+          console.log('User not found, creating basic profile...');
+          const roleId = await ensureAdminUserExists(userId, email);
+          return { 
+            id: userId, 
+            email, 
+            full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
+            role_id: roleId,
+            roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
+          };
         }
         
-        // For other errors, use fallback
-        return await upsertUserProfile(userId, email);
+        // For permission errors or other issues, return fallback data
+        return { 
+          id: userId, 
+          email, 
+          full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
+          role_id: 1,
+          roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
+        };
       }
 
       console.log('Profile fetched successfully:', data);
@@ -123,42 +125,47 @@ export function useAuth() {
     } catch (error) {
       console.error('Exception in fetchUserWithRole:', error);
       // Use fallback data
-      return await upsertUserProfile(userId, email);
+      return { 
+        id: userId, 
+        email, 
+        full_name: email === 'admin@treasure.edu' ? 'Admin User' : email.split('@')[0],
+        role_id: 1,
+        roles: { role_name: email === 'admin@treasure.edu' ? 'Admin' : 'Student' }
+      };
     }
   };
 
   const redirectBasedOnRole = (roleName: string | undefined) => {
     console.log('Redirecting based on role:', roleName);
     
-    // Use window.location for more reliable redirects
-    const redirectTo = (path: string) => {
+    // Use a small delay to ensure state is updated
+    setTimeout(() => {
+      let path = '/';
+      
+      if (!roleName) {
+        console.log('No role found, redirecting to home');
+      } else {
+        switch (roleName.toLowerCase()) {
+          case 'admin':
+            path = '/admin';
+            break;
+          case 'teacher':
+            path = '/teacher';
+            break;
+          case 'student':
+            path = '/student';
+            break;
+          case 'parent':
+            path = '/parent';
+            break;
+          default:
+            path = '/';
+        }
+      }
+      
       console.log('Redirecting to:', path);
-      window.location.href = path;
-    };
-
-    // Fallback if no role is found
-    if (!roleName) {
-      console.log('No role found, redirecting to home');
-      redirectTo('/');
-      return;
-    }
-
-    switch (roleName.toLowerCase()) {
-      case 'admin':
-        redirectTo('/admin');
-        break;
-      case 'teacher':
-        redirectTo('/teacher');
-        break;
-      case 'student':
-        redirectTo('/student');
-        break;
-      case 'parent':
-        redirectTo('/parent');
-        break;
-      default:
-        redirectTo('/');
-    }
+      setLocation(path);
+    }, 100); // Small delay to ensure state updates
   };
 
   // Process user authentication and data fetching
@@ -176,7 +183,8 @@ export function useAuth() {
         const userWithRole = {
           ...sessionUser,
           ...userData,
-          role_name: (userData as any).roles?.role_name || 'Admin'
+          role_name: (userData as any).roles?.role_name || 
+                     (sessionUser.email === 'admin@treasure.edu' ? 'Admin' : 'Student')
         };
         setUser(userWithRole as AppUser);
         redirectBasedOnRole((userData as any).roles?.role_name);
@@ -193,7 +201,7 @@ export function useAuth() {
       }
     } catch (error) {
       console.error('Error processing user auth:', error);
-      // Final fallback
+      // Final fallback - redirect to home
       setLocation('/');
     }
   };
