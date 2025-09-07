@@ -75,7 +75,6 @@ export default function AdminDashboard() {
   const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
-      // Use Promise.all to fetch all data concurrently for better performance
       const [
         { data: usersData, error: usersError },
         { data: announcementsData, error: announcementsError },
