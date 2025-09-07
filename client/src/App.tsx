@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,9 +7,9 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
 import AdminDashboard from "@/pages/admin/Dashboard";
-import TeacherDashboard from "@/pages/teacher-dashboard";
-import StudentDashboard from "@/pages/student-dashboard";
-import ParentDashboard from "@/pages/parent-dashboard";
+import TeacherDashboard from "@/pages/teacher/Dashboard";
+import StudentDashboard from "@/pages/student/Dashboard";
+import ParentDashboard from "@/pages/parent/Dashboard";
 import ExamInterface from "@/pages/exam-interface";
 import Login from "@/pages/Login";
 import Unauthorized from "@/pages/unauthorized";
@@ -23,7 +23,47 @@ import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
 import { queryClient } from "./lib/queryClient";
 
-// Protected Route Component
+// A component to redirect authenticated users away from public pages
+function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
+      </div>
+    );
+  }
+
+  // Redirect authenticated users from public pages to their dashboard
+  if (isAuthenticated) {
+    let path = '/';
+    switch (user?.role_name?.toLowerCase()) {
+      case 'admin':
+        path = '/admin';
+        break;
+      case 'teacher':
+        path = '/teacher';
+        break;
+      case 'student':
+        path = '/student';
+        break;
+      case 'parent':
+        path = '/parent';
+        break;
+    }
+    // Perform the redirect to prevent the back-button loop
+    if (window.location.pathname !== path) {
+      setLocation(path, { replace: true });
+    }
+  }
+
+  return <>{children}</>;
+}
+
+
+// Protected Route Component for role-based access
 function ProtectedRoute({ children, requiredRole }: { 
   children: React.ReactNode;
   requiredRole?: string;
@@ -39,7 +79,7 @@ function ProtectedRoute({ children, requiredRole }: {
   }
 
   if (!isAuthenticated) {
-    return <Login />;
+    return <Redirect to="/login" />;
   }
 
   if (requiredRole && user?.role_name !== requiredRole) {
@@ -53,9 +93,17 @@ function ProtectedRoute({ children, requiredRole }: {
 function Router() {
   return (
     <Switch>
-      {/* Public Routes */}
-      <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
+      {/* Public Routes - Wrapped with RedirectIfAuthenticated */}
+      <Route path="/">
+        <RedirectIfAuthenticated>
+          <Landing />
+        </RedirectIfAuthenticated>
+      </Route>
+      <Route path="/login">
+        <RedirectIfAuthenticated>
+          <Login />
+        </RedirectIfAuthenticated>
+      </Route>
       <Route path="/unauthorized" component={Unauthorized} />
 
       {/* Protected Routes */}
@@ -148,9 +196,8 @@ function Router() {
 
 // Main App Component
 function App() {
-  const { isLoading } = useAuth(); // Call useAuth once at the top
+  const { isLoading } = useAuth();
   
-  // This top-level check for loading prevents any route from rendering prematurely
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
