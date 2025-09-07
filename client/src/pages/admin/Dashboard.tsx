@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+// Type definitions for your data
 interface UserData { 
   id: string; 
   email: string; 
@@ -71,7 +72,7 @@ export default function AdminDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data, isLoading, isError } = useQuery<DashboardData>({
+  const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
       // Use Promise.all to fetch all data concurrently for better performance
@@ -92,45 +93,36 @@ export default function AdminDashboard() {
       ]);
 
       if (usersError || announcementsError || examsError || enrollmentsError || messagesError || galleryError) {
-        throw new Error('Failed to fetch one or more dashboard data tables.');
+        throw new Error(
+          `Failed to fetch dashboard data. Users: ${usersError?.message || 'OK'}, Announcements: ${announcementsError?.message || 'OK'}, Exams: ${examsError?.message || 'OK'}, Enrollments: ${enrollmentsError?.message || 'OK'}, Messages: ${messagesError?.message || 'OK'}, Gallery: ${galleryError?.message || 'OK'}`
+        );
       }
       
       return {
-        users: usersData.map(u => ({ ...u, role_name: u.roles.role_name })) as UserData[],
-        announcements: announcementsData as Announcement[],
-        exams: examsData as Exam[],
-        enrollments: enrollmentsData as Enrollment[],
-        messages: messagesData as Message[],
-        gallery: galleryData as Gallery[]
+        users: usersData?.map(u => ({ ...u, role_name: u.roles.role_name })) as UserData[] || [],
+        announcements: announcementsData as Announcement[] || [],
+        exams: examsData as Exam[] || [],
+        enrollments: enrollmentsData as Enrollment[] || [],
+        messages: messagesData as Message[] || [],
+        gallery: galleryData as Gallery[] || []
       };
     },
-    // The query will only run if the user is authenticated, which is already
-    // handled by the ProtectedRoute component.
     enabled: !!user,
+    retry: 1
   });
 
   // Handle errors from the query
   if (isError) {
+    console.error('Query Error:', error);
     toast({
       title: "Error",
-      description: "Failed to load dashboard data. Please try again later.",
+      description: "Failed to load dashboard data. Please check the console for details.",
       variant: "destructive",
     });
   }
-
-  // Derived state from React Query's data object
-  const usersByRole = data ? {
-    admin: data.users.filter((u) => u.role_name === 'Admin'),
-    teacher: data.users.filter((u) => u.role_name === 'Teacher'),
-    student: data.users.filter((u) => u.role_name === 'Student'),
-    parent: data.users.filter((u) => u.role_name === 'Parent'),
-  } : { admin: [], teacher: [], student: [], parent: [] };
-
-  const pendingEnrollments = data?.enrollments.filter((e) => e.status === 'pending') || [];
-  const recentMessages = data?.messages.slice(0, 5) || [];
   
-  // The only loading state check needed in this component
-  if (isLoading || isError) {
+  // Conditionally render based on loading and error states
+  if (isLoading) {
     return (
       <Layout type="portal">
         <div className="min-h-screen flex items-center justify-center">
@@ -139,6 +131,39 @@ export default function AdminDashboard() {
       </Layout>
     );
   }
+
+  // If there's an error, don't render the dashboard content
+  if (isError || !data) {
+    return (
+      <Layout type="portal">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="w-full max-w-lg text-center">
+            <CardHeader>
+              <CardTitle>Dashboard Unavailable</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                There was a problem loading the dashboard data.
+              </p>
+              <p className="text-sm text-red-500 mt-2">
+                Please check your Supabase tables and try again.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // All data is available, now we can safely derive state and render
+  const usersByRole = {
+    admin: data.users.filter((u) => u.role_name === 'Admin'),
+    teacher: data.users.filter((u) => u.role_name === 'Teacher'),
+    student: data.users.filter((u) => u.role_name === 'Student'),
+    parent: data.users.filter((u) => u.role_name === 'Parent'),
+  };
+  const pendingEnrollments = data.enrollments.filter((e) => e.status === 'pending');
+  const recentMessages = data.messages.slice(0, 5);
 
   return (
     <Layout type="portal">
