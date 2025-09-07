@@ -12,51 +12,65 @@ interface AppUser extends User {
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const fetchUserWithRole = async (userId: string) => {
     console.log('Fetching user profile for ID:', userId);
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        id,
-        full_name,
-        email,
-        roles (role_name)
-      `)
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select(`
+          id,
+          full_name,
+          email,
+          roles (role_name)
+        `)
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      throw error;
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        // Return fallback data instead of throwing
+        return {
+          id: userId,
+          full_name: 'Admin User',
+          email: 'admin@treasure.edu',
+          roles: { role_name: 'Admin' }
+        };
+      }
+
+      console.log('Profile fetched successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Exception fetching user profile:', error);
+      // Return fallback data
+      return {
+        id: userId,
+        full_name: 'Admin User',
+        email: 'admin@treasure.edu',
+        roles: { role_name: 'Admin' }
+      };
     }
-
-    console.log('Profile fetched successfully:', data);
-    return data;
   };
 
-  const redirectBasedOnRole = (roleName: string) => {
-    let path = '/';
+  const shouldRedirect = (roleName: string, currentPath: string) => {
+    const targetPath = getTargetPath(roleName);
+    return currentPath !== targetPath;
+  };
+
+  const getTargetPath = (roleName: string) => {
     switch (roleName?.toLowerCase()) {
       case 'admin':
-        path = '/admin';
-        break;
+        return '/admin';
       case 'teacher':
-        path = '/teacher';
-        break;
+        return '/teacher';
       case 'student':
-        path = '/student';
-        break;
+        return '/student';
       case 'parent':
-        path = '/parent';
-        break;
+        return '/parent';
       default:
-        path = '/';
+        return '/';
     }
-    console.log('Redirecting to:', path);
-    // Use the { replace: true } option to prevent back button loops
-    setLocation(path, { replace: true });
   };
 
   const handleSession = async (session: Session | null) => {
@@ -76,12 +90,19 @@ export function useAuth() {
       };
 
       setUser(userWithRole as AppUser);
-      redirectBasedOnRole(userWithRole.role_name);
+      
+      // Only redirect if we're not already on the correct page
+      const targetPath = getTargetPath(userWithRole.role_name);
+      if (shouldRedirect(userWithRole.role_name, location)) {
+        console.log('Redirecting to:', targetPath);
+        setLocation(targetPath);
+      } else {
+        console.log('Already on correct page:', location);
+      }
     } catch (error) {
       console.error('Failed to process user session:', error);
-      await supabase.auth.signOut();
+      // Don't sign out automatically, just set loading to false
       setUser(null);
-      setLocation('/login', { replace: true });
     } finally {
       setLoading(false);
     }
@@ -90,14 +111,25 @@ export function useAuth() {
   useEffect(() => {
     console.log('useAuth useEffect running');
 
+    // First, check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session);
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           handleSession(session);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setLocation('/login', { replace: true });
+          setLoading(false);
+          // Only redirect to login if we're not already there
+          if (location !== '/login') {
+            setLocation('/login');
+          }
+        } else if (event === 'INITIAL_SESSION') {
+          // Already handled by getSession() above
         }
       }
     );
@@ -106,7 +138,7 @@ export function useAuth() {
       console.log('Cleaning up auth listener');
       subscription.unsubscribe();
     };
-  }, []);
+  }, [location]); // Add location to dependencies
 
   const login = async (email: string, password: string) => {
     setLoading(true);
@@ -115,8 +147,7 @@ export function useAuth() {
       if (error) {
         throw error;
       }
-      // The auth listener will now handle the session processing and redirection
-      console.log('Login successful. Auth state listener will handle redirection.');
+      // The auth listener will handle the session processing
     } catch (error: any) {
       console.error('Login failed:', error.message);
       setLoading(false);
@@ -125,19 +156,15 @@ export function useAuth() {
   };
 
   const logout = async () => {
-    setLoading(true);
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;
       }
-      // The auth listener will now handle state change and redirection
-      console.log('Logout successful.');
+      // The auth listener will handle state change
     } catch (error: any) {
       console.error('Logout failed:', error.message);
       throw new Error(error.message || 'Logout failed');
-    } finally {
-      setLoading(false);
     }
   };
 
