@@ -31,7 +31,7 @@ export function useAuth() {
       console.error('Error fetching user profile:', error);
       throw error;
     }
-    
+
     console.log('Profile fetched successfully:', data);
     return data;
   };
@@ -68,13 +68,13 @@ export function useAuth() {
 
     try {
       const userProfile = await fetchUserWithRole(session.user.id);
-      
+
       const userWithRole = {
         ...session.user,
         ...userProfile,
         role_name: userProfile.roles?.role_name || 'default'
       };
-      
+
       setUser(userWithRole as AppUser);
       redirectBasedOnRole(userWithRole.role_name);
     } catch (error) {
@@ -89,7 +89,7 @@ export function useAuth() {
 
   useEffect(() => {
     console.log('useAuth useEffect running');
-    
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session);
