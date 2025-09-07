@@ -15,6 +15,7 @@ import {
   MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Type definitions for your data
 interface UserData { 
@@ -69,12 +70,15 @@ interface DashboardData {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  const { data, isLoading, isError, error } = useQuery<DashboardData>({
+  // Only fetch data when user is fully authenticated
+  const { data, isLoading: dataLoading, isError, error } = useQuery<DashboardData>({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
+      console.log('Fetching admin dashboard data...');
+      
       // Use Promise.all to fetch all data concurrently for better performance
       const [
         { data: usersData, error: usersError },
@@ -92,14 +96,22 @@ export default function AdminDashboard() {
         supabase.from('gallery').select('id, caption, created_at').order('created_at', { ascending: false })
       ]);
 
-      if (usersError || announcementsError || examsError || enrollmentsError || messagesError || galleryError) {
-        throw new Error(
-          `Failed to fetch dashboard data. Users: ${usersError?.message || 'OK'}, Announcements: ${announcementsError?.message || 'OK'}, Exams: ${examsError?.message || 'OK'}, Enrollments: ${enrollmentsError?.message || 'OK'}, Messages: ${messagesError?.message || 'OK'}, Gallery: ${galleryError?.message || 'OK'}`
-        );
+      // Check for errors but don't throw for individual table errors
+      const errors = [
+        usersError, announcementsError, examsError, 
+        enrollmentsError, messagesError, galleryError
+      ].filter(Boolean);
+
+      if (errors.length > 0) {
+        console.error('Partial data errors:', errors);
+        // We'll still return available data instead of throwing
       }
       
       return {
-        users: usersData?.map(u => ({ ...u, role_name: u.roles.role_name })) as UserData[] || [],
+        users: usersData?.map(u => ({ 
+          ...u, 
+          role_name: u.roles?.role_name || 'Unknown' 
+        })) as UserData[] || [],
         announcements: announcementsData as Announcement[] || [],
         exams: examsData as Exam[] || [],
         enrollments: enrollmentsData as Enrollment[] || [],
@@ -107,33 +119,29 @@ export default function AdminDashboard() {
         gallery: galleryData as Gallery[] || []
       };
     },
-    enabled: !!user,
-    retry: 1
+    enabled: !!user && !authLoading, // Only fetch when user is fully authenticated
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
-  // Handle errors from the query
-  if (isError) {
-    console.error('Query Error:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load dashboard data. Please check the console for details.",
-      variant: "destructive",
-    });
-  }
-  
-  // Conditionally render based on loading and error states
-  if (isLoading) {
+  // Show loading if auth is still loading OR data is loading
+  if (authLoading || dataLoading) {
     return (
       <Layout type="portal">
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-        </div>
+        <LoadingSpinner message="Loading dashboard data..." />
       </Layout>
     );
   }
 
-  // If there's an error, don't render the dashboard content
-  if (isError || !data) {
+  // If there's a major error and no data at all
+  if (isError && !data) {
+    console.error('Dashboard query error:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load dashboard data. Please try refreshing the page.",
+      variant: "destructive",
+    });
+    
     return (
       <Layout type="portal">
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -142,12 +150,15 @@ export default function AdminDashboard() {
               <CardTitle>Dashboard Unavailable</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 There was a problem loading the dashboard data.
               </p>
-              <p className="text-sm text-red-500 mt-2">
-                Please check your Supabase tables and try again.
-              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+              >
+                Refresh Page
+              </button>
             </CardContent>
           </Card>
         </div>
@@ -155,15 +166,26 @@ export default function AdminDashboard() {
     );
   }
 
+  // Use fallback empty arrays if data is undefined
+  const safeData = data || {
+    users: [],
+    announcements: [],
+    exams: [],
+    enrollments: [],
+    messages: [],
+    gallery: []
+  };
+
   // All data is available, now we can safely derive state and render
   const usersByRole = {
-    admin: data.users.filter((u) => u.role_name === 'Admin'),
-    teacher: data.users.filter((u) => u.role_name === 'Teacher'),
-    student: data.users.filter((u) => u.role_name === 'Student'),
-    parent: data.users.filter((u) => u.role_name === 'Parent'),
+    admin: safeData.users.filter((u) => u.role_name === 'Admin'),
+    teacher: safeData.users.filter((u) => u.role_name === 'Teacher'),
+    student: safeData.users.filter((u) => u.role_name === 'Student'),
+    parent: safeData.users.filter((u) => u.role_name === 'Parent'),
   };
-  const pendingEnrollments = data.enrollments.filter((e) => e.status === 'pending');
-  const recentMessages = data.messages.slice(0, 5);
+  
+  const pendingEnrollments = safeData.enrollments.filter((e) => e.status === 'pending');
+  const recentMessages = safeData.messages.slice(0, 5);
 
   return (
     <Layout type="portal">
@@ -183,7 +205,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{data.users.length}</div>
+                  <div className="text-3xl font-bold">{safeData.users.length}</div>
                   <div className="text-blue-100">Total Users</div>
                 </div>
                 <Users className="h-12 w-12 text-blue-200" />
@@ -195,7 +217,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{data.exams.length}</div>
+                  <div className="text-3xl font-bold">{safeData.exams.length}</div>
                   <div className="text-green-100">Active Exams</div>
                 </div>
                 <GraduationCap className="h-12 w-12 text-green-200" />
@@ -207,7 +229,7 @@ export default function AdminDashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold">{data.announcements.length}</div>
+                  <div className="text-3xl font-bold">{safeData.announcements.length}</div>
                   <div className="text-orange-100">Announcements</div>
                 </div>
                 <Megaphone className="h-12 w-12 text-orange-200" />
@@ -271,28 +293,28 @@ export default function AdminDashboard() {
                     <Camera className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Gallery Images</span>
                   </div>
-                  <Badge variant="outline">{data.gallery.length}</Badge>
+                  <Badge variant="outline">{safeData.gallery.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <MessageSquare className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Messages</span>
                   </div>
-                  <Badge variant="outline">{data.messages.length}</Badge>
+                  <Badge variant="outline">{safeData.messages.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <BookOpen className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Total Exams</span>
                   </div>
-                  <Badge variant="outline">{data.exams.length}</Badge>
+                  <Badge variant="outline">{safeData.exams.length}</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <FileText className="mr-2 h-4 w-4 text-textSecondary" />
                     <span className="text-textSecondary">Active Announcements</span>
                   </div>
-                  <Badge variant="outline">{data.announcements.length}</Badge>
+                  <Badge variant="outline">{safeData.announcements.length}</Badge>
                 </div>
               </div>
             </CardContent>
