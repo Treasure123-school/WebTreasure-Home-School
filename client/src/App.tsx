@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -29,6 +29,7 @@ function ProtectedRoute({ children, requiredRole }: {
   requiredRole?: string;
 }) {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const [location, setLocation] = useLocation();
 
   if (isLoading) {
     return (
@@ -39,7 +40,18 @@ function ProtectedRoute({ children, requiredRole }: {
   }
 
   if (!isAuthenticated) {
-    return <Redirect to="/login" />;
+    // Use useEffect to redirect properly
+    import("./hooks/useAuth").then(({ useAuth }) => {
+      const { isLoading: authLoading } = useAuth();
+      if (!authLoading) {
+        setTimeout(() => setLocation('/login'), 100);
+      }
+    });
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
+      </div>
+    );
   }
 
   if (requiredRole && user?.role_name !== requiredRole) {
@@ -51,27 +63,37 @@ function ProtectedRoute({ children, requiredRole }: {
 
 // Router Component
 function Router() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const [location, setLocation] = useLocation();
 
-  // A temporary redirect from public to private for authenticated users
-  // This happens on initial load to prevent the back button from looping
-  if (isAuthenticated && (window.location.pathname === '/' || window.location.pathname === '/login')) {
-    let path = '/';
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
+      </div>
+    );
+  }
+
+  // Handle authenticated users trying to access public routes
+  if (isAuthenticated && (location === '/' || location === '/login')) {
+    let targetPath = '/home';
     switch (user?.role_name?.toLowerCase()) {
       case 'admin':
-        path = '/admin';
+        targetPath = '/admin';
         break;
       case 'teacher':
-        path = '/teacher';
+        targetPath = '/teacher';
         break;
       case 'student':
-        path = '/student';
+        targetPath = '/student';
         break;
       case 'parent':
-        path = '/parent';
+        targetPath = '/parent';
         break;
     }
-    return <Redirect to={path} />;
+    
+    // Use Redirect component instead of imperative navigation
+    return <Redirect to={targetPath} />;
   }
 
   return (
@@ -164,23 +186,13 @@ function Router() {
       </Route>
 
       {/* 404 Not Found Route */}
-      <Route path="/:rest*" component={NotFound} />
+      <Route component={NotFound} />
     </Switch>
   );
 }
 
 // Main App Component
 function App() {
-  const { isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
