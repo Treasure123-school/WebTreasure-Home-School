@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+// Type definitions for your data
 interface UserData { 
   id: string; 
   email: string; 
@@ -98,12 +99,12 @@ export default function AdminDashboard() {
       }
       
       return {
-        users: usersData.map(u => ({ ...u, role_name: u.roles.role_name })) as UserData[],
-        announcements: announcementsData as Announcement[],
-        exams: examsData as Exam[],
-        enrollments: enrollmentsData as Enrollment[],
-        messages: messagesData as Message[],
-        gallery: galleryData as Gallery[]
+        users: usersData?.map(u => ({ ...u, role_name: u.roles.role_name })) as UserData[] || [],
+        announcements: announcementsData as Announcement[] || [],
+        exams: examsData as Exam[] || [],
+        enrollments: enrollmentsData as Enrollment[] || [],
+        messages: messagesData as Message[] || [],
+        gallery: galleryData as Gallery[] || []
       };
     },
     enabled: !!user,
