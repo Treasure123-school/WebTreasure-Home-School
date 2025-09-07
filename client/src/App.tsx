@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect, useLocation } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,52 +23,13 @@ import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
 import { queryClient } from "./lib/queryClient";
 
-// A component to redirect authenticated users away from public pages
-function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-      </div>
-    );
-  }
-
-  // If user is authenticated and on a public page, redirect them to their dashboard
-  if (isAuthenticated && (window.location.pathname === '/' || window.location.pathname === '/login')) {
-    let path = '/';
-    switch (user?.role_name?.toLowerCase()) {
-      case 'admin':
-        path = '/admin';
-        break;
-      case 'teacher':
-        path = '/teacher';
-        break;
-      case 'student':
-        path = '/student';
-        break;
-      case 'parent':
-        path = '/parent';
-        break;
-    }
-    // Use replace: true to prevent an infinite redirect loop in history
-    setLocation(path, { replace: true });
-    return null; // Return null to prevent rendering the child components
-  }
-
-  return <>{children}</>;
-}
-
-
 // Protected Route Component for role-based access
 function ProtectedRoute({ children, requiredRole }: { 
   children: React.ReactNode;
   requiredRole?: string;
 }) {
   const { user, isLoading, isAuthenticated } = useAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -90,19 +51,34 @@ function ProtectedRoute({ children, requiredRole }: {
 
 // Router Component
 function Router() {
+  const { isAuthenticated, user } = useAuth();
+
+  // A temporary redirect from public to private for authenticated users
+  // This happens on initial load to prevent the back button from looping
+  if (isAuthenticated && (window.location.pathname === '/' || window.location.pathname === '/login')) {
+    let path = '/';
+    switch (user?.role_name?.toLowerCase()) {
+      case 'admin':
+        path = '/admin';
+        break;
+      case 'teacher':
+        path = '/teacher';
+        break;
+      case 'student':
+        path = '/student';
+        break;
+      case 'parent':
+        path = '/parent';
+        break;
+    }
+    return <Redirect to={path} />;
+  }
+
   return (
     <Switch>
-      {/* Public Routes - Wrapped with RedirectIfAuthenticated */}
-      <Route path="/">
-        <RedirectIfAuthenticated>
-          <Landing />
-        </RedirectIfAuthenticated>
-      </Route>
-      <Route path="/login">
-        <RedirectIfAuthenticated>
-          <Login />
-        </RedirectIfAuthenticated>
-      </Route>
+      {/* Public Routes - Accessible to all */}
+      <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
       <Route path="/unauthorized" component={Unauthorized} />
 
       {/* Protected Routes */}
@@ -111,7 +87,7 @@ function Router() {
           <Home />
         </ProtectedRoute>
       </Route>
-      
+
       {/* Admin Routes */}
       <Route path="/admin">
         <ProtectedRoute requiredRole="Admin">
@@ -179,7 +155,7 @@ function Router() {
           <ParentDashboard />
         </ProtectedRoute>
       </Route>
-      
+
       {/* Shared exam route */}
       <Route path="/exam/:examId/interface">
         <ProtectedRoute>
@@ -196,7 +172,7 @@ function Router() {
 // Main App Component
 function App() {
   const { isLoading } = useAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
