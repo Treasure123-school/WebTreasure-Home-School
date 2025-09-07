@@ -36,8 +36,8 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Redirect authenticated users from public pages to their dashboard
-  if (isAuthenticated) {
+  // If user is authenticated and on a public page, redirect them to their dashboard
+  if (isAuthenticated && (window.location.pathname === '/' || window.location.pathname === '/login')) {
     let path = '/';
     switch (user?.role_name?.toLowerCase()) {
       case 'admin':
@@ -53,10 +53,9 @@ function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
         path = '/parent';
         break;
     }
-    // Perform the redirect to prevent the back-button loop
-    if (window.location.pathname !== path) {
-      setLocation(path, { replace: true });
-    }
+    // Use replace: true to prevent an infinite redirect loop in history
+    setLocation(path, { replace: true });
+    return null; // Return null to prevent rendering the child components
   }
 
   return <>{children}</>;
