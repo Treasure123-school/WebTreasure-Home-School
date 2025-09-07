@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { User } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 interface AppUser extends User {
@@ -15,39 +15,30 @@ export function useAuth() {
   const [, setLocation] = useLocation();
 
   const fetchUserWithRole = async (userId: string) => {
-    try {
-      console.log('Fetching user profile for ID:', userId);
+    console.log('Fetching user profile for ID:', userId);
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        full_name,
+        email,
+        roles (role_name)
+      `)
+      .eq('id', userId)
+      .single();
 
-      const { data, error } = await supabase
-        .from('users')
-        .select(`
-          id,
-          full_name,
-          email,
-          roles (role_name)
-        `)
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        // Log the error and re-throw it to be caught by the calling function
-        console.error('Error fetching user profile:', error);
-        throw error;
-      }
-      
-      console.log('Profile fetched successfully:', data);
-      return data;
-
-    } catch (error) {
-      console.error('Exception in fetchUserWithRole:', error);
-      // Let the error propagate up the call stack
+    if (error) {
+      console.error('Error fetching user profile:', error);
       throw error;
     }
+    
+    console.log('Profile fetched successfully:', data);
+    return data;
   };
 
   const redirectBasedOnRole = (roleName: string) => {
     let path = '/';
-    switch (roleName.toLowerCase()) {
+    switch (roleName?.toLowerCase()) {
       case 'admin':
         path = '/admin';
         break;
@@ -64,10 +55,11 @@ export function useAuth() {
         path = '/';
     }
     console.log('Redirecting to:', path);
-    setLocation(path);
+    // Use the { replace: true } option to prevent back button loops
+    setLocation(path, { replace: true });
   };
 
-  const handleSession = async (session: any) => {
+  const handleSession = async (session: Session | null) => {
     if (!session?.user) {
       setUser(null);
       setLoading(false);
@@ -75,10 +67,8 @@ export function useAuth() {
     }
 
     try {
-      // Fetch user profile from the database
       const userProfile = await fetchUserWithRole(session.user.id);
       
-      // Combine Supabase auth user data with the fetched profile data
       const userWithRole = {
         ...session.user,
         ...userProfile,
@@ -87,13 +77,11 @@ export function useAuth() {
       
       setUser(userWithRole as AppUser);
       redirectBasedOnRole(userWithRole.role_name);
-
     } catch (error) {
       console.error('Failed to process user session:', error);
-      // If profile fetch fails, sign out the user and redirect to login
       await supabase.auth.signOut();
       setUser(null);
-      setLocation('/login');
+      setLocation('/login', { replace: true });
     } finally {
       setLoading(false);
     }
@@ -102,21 +90,14 @@ export function useAuth() {
   useEffect(() => {
     console.log('useAuth useEffect running');
     
-    // Check for initial session on component mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session found:', session);
-      handleSession(session);
-    });
-
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event, session);
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
           handleSession(session);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          setLocation('/login');
+          setLocation('/login', { replace: true });
         }
       }
     );
@@ -134,6 +115,7 @@ export function useAuth() {
       if (error) {
         throw error;
       }
+      // The auth listener will now handle the session processing and redirection
       console.log('Login successful. Auth state listener will handle redirection.');
     } catch (error: any) {
       console.error('Login failed:', error.message);
@@ -149,8 +131,8 @@ export function useAuth() {
       if (error) {
         throw error;
       }
-      setUser(null);
-      setLocation('/login');
+      // The auth listener will now handle state change and redirection
+      console.log('Logout successful.');
     } catch (error: any) {
       console.error('Logout failed:', error.message);
       throw new Error(error.message || 'Logout failed');
