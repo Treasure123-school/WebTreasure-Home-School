@@ -22,6 +22,7 @@ import TeacherExams from "@/pages/teacher/Exams";
 import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
 import { queryClient } from "./lib/queryClient";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 // Protected Route Component for role-based access
 function ProtectedRoute({ children, requiredRole }: { 
@@ -29,29 +30,16 @@ function ProtectedRoute({ children, requiredRole }: {
   requiredRole?: string;
 }) {
   const { user, isLoading, isAuthenticated } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner message="Checking authentication..." />;
   }
 
   if (!isAuthenticated) {
-    // Use useEffect to redirect properly
-    import("./hooks/useAuth").then(({ useAuth }) => {
-      const { isLoading: authLoading } = useAuth();
-      if (!authLoading) {
-        setTimeout(() => setLocation('/login'), 100);
-      }
-    });
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-      </div>
-    );
+    // Use setTimeout to avoid React state update during render
+    setTimeout(() => setLocation('/login'), 100);
+    return <LoadingSpinner message="Redirecting to login..." />;
   }
 
   if (requiredRole && user?.role_name !== requiredRole) {
@@ -64,14 +52,10 @@ function ProtectedRoute({ children, requiredRole }: {
 // Router Component
 function Router() {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-16 w-16 animate-spin rounded-full border-4 border-t-4 border-gray-200 border-t-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading application..." />;
   }
 
   // Handle authenticated users trying to access public routes
@@ -90,9 +74,10 @@ function Router() {
       case 'parent':
         targetPath = '/parent';
         break;
+      default:
+        targetPath = '/home';
     }
     
-    // Use Redirect component instead of imperative navigation
     return <Redirect to={targetPath} />;
   }
 
