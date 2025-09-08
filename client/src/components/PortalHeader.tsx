@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter"; // ADD useLocation import
 import { 
   GraduationCap, 
   Menu, 
@@ -27,6 +27,7 @@ interface PortalHeaderProps {
 export default function PortalHeader({ user }: PortalHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { logout } = useAuth();
+  const [location] = useLocation(); // ADD this to check current location
 
   const getInitials = (fullName: string | null) => {
     if (!fullName) return 'U';
@@ -66,7 +67,6 @@ export default function PortalHeader({ user }: PortalHeaderProps) {
           { href: '/admin/gallery', label: 'Gallery', testId: 'nav-admin-gallery' },
           { href: '/admin/exams', label: 'Exams', testId: 'nav-admin-exams' },
           { href: '/admin/enrollments', label: 'Enrollments', testId: 'nav-admin-enrollments' },
-          { href: '/admin/create-user', label: 'Create User', testId: 'nav-admin-create-user' },
         ];
       case 'teacher':
         return [
@@ -110,16 +110,23 @@ export default function PortalHeader({ user }: PortalHeaderProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6" data-testid="portal-desktop-nav">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-textPrimary hover:text-primary font-medium transition-colors"
-                data-testid={item.testId}
-              >
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`font-medium transition-colors ${
+                    isActive 
+                      ? 'text-primary border-b-2 border-primary' 
+                      : 'text-textPrimary hover:text-primary'
+                  }`}
+                  data-testid={item.testId}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* User Menu */}
@@ -183,17 +190,24 @@ export default function PortalHeader({ user }: PortalHeaderProps) {
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t" data-testid="portal-mobile-menu">
             <div className="space-y-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block text-textPrimary hover:text-primary font-medium transition-colors"
-                  data-testid={`mobile-${item.testId}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {navItems.map((item) => {
+                const isActive = location === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`block font-medium transition-colors ${
+                      isActive 
+                        ? 'text-primary border-l-2 border-primary pl-3' 
+                        : 'text-textPrimary hover:text-primary pl-4'
+                    }`}
+                    data-testid={`mobile-${item.testId}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
               <div className="pt-4 border-t">
                 <Button
                   onClick={() => logout()}
