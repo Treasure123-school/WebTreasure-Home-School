@@ -2,22 +2,13 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/queryClient";
-import { insertGallerySchema } from "@/lib/types";
+import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -25,92 +16,130 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Camera, Plus, Trash2, Search } from "lucide-react";
-import { z } from "zod";
+import { Camera, Plus, Trash2, Upload, RefreshCw } from "lucide-react";
 
-const galleryFormSchema = insertGallerySchema;
+interface GalleryImage {
+  id: string;
+  image_url: string;
+  caption: string;
+  created_at: string;
+  uploaded_by: string;
+}
 
 export default function AdminGallery() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    imageUrl: '',
+    caption: ''
+  });
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || user.role_name !== 'admin')) {
       toast({
         title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        description: "You need admin privileges to access this page.",
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+        window.location.href = "/login";
+      }, 2000);
     }
-  }, [user, isLoading, toast]);
+  }, [user, authLoading, toast]);
 
-  const { data: galleryImages = [], isLoading: galleryLoading } = useQuery({
-    queryKey: ['/api/gallery'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
-  });
+  // Fetch gallery images from Supabase
+  const { data: galleryImages = [], isLoading: galleryLoading, refetch } = useQuery({
+    queryKey: ['gallery'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const form = useForm<z.infer<typeof galleryFormSchema>>({
-    resolver: zodResolver(galleryFormSchema),
-    defaultValues: {
-      imageUrl: '',
-      caption: '',
-      uploadedBy: user?.id || '',
+      if (error) {
+        console.error('Error fetching gallery images:', error);
+        throw error;
+      }
+
+      return data as GalleryImage[];
     },
+    enabled: !!user && user.role_name === 'admin',
   });
 
+  // Create gallery image mutation
   const createMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof galleryFormSchema>) => {
-      await apiRequest('POST', '/api/gallery', data);
+    mutationFn: async (imageData: { image_url: string; caption: string }) => {
+      const { error } = await supabase
+        .from('gallery')
+        .insert([{
+          ...imageData,
+          uploaded_by: user?.id
+        }]);
+
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "Image Added",
+        title: "Success",
         description: "Image has been added to the gallery successfully.",
       });
-      form.reset();
+      setFormData({ imageUrl: '', caption: '' });
       setIsCreateOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
+      queryClient.invalidateQueries({ queryKey: ['gallery'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to add image to gallery.",
+        description: error.message || "Failed to add image to gallery.",
         variant: "destructive",
       });
     },
   });
 
+  // Delete gallery image mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest('DELETE', `/api/gallery/${id}`);
+      const { error } = await supabase
+        .from('gallery')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "Image Deleted",
+        title: "Success",
         description: "Image has been removed from the gallery.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/gallery'] });
+      queryClient.invalidateQueries({ queryKey: ['gallery'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to delete image.",
+        description: error.message || "Failed to delete image.",
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: z.infer<typeof galleryFormSchema>) => {
-    createMutation.mutate({ ...data, uploadedBy: user?.id || '' });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.imageUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide an image URL",
+        variant: "destructive",
+      });
+      return;
+    }
+    createMutation.mutate({
+      image_url: formData.imageUrl,
+      caption: formData.caption
+    });
   };
 
   const handleDelete = (id: string) => {
@@ -119,10 +148,21 @@ export default function AdminGallery() {
     }
   };
 
-  if (isLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user || user.role_name !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
+          <p className="text-textSecondary">You need admin privileges to access this page.</p>
+        </div>
       </div>
     );
   }
@@ -136,55 +176,51 @@ export default function AdminGallery() {
             <p className="text-textSecondary">Manage school photos and images</p>
           </div>
 
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="add-image">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Image
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Image</DialogTitle>
-              </DialogHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="gallery-form">
-                  <FormField
-                    control={form.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="https://example.com/image.jpg" 
-                            {...field} 
-                            data-testid="input-image-url"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+          <div className="flex space-x-2">
+            <Button 
+              variant="outline" 
+              onClick={() => refetch()}
+              disabled={galleryLoading}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button data-testid="add-image">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Image
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Image</DialogTitle>
+                </DialogHeader>
+                
+                <form onSubmit={handleSubmit} className="space-y-4" data-testid="gallery-form">
+                  <div className="space-y-2">
+                    <Label htmlFor="imageUrl">Image URL *</Label>
+                    <Input
+                      id="imageUrl"
+                      placeholder="https://example.com/image.jpg"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData({...formData, imageUrl: e.target.value})}
+                      required
+                      data-testid="input-image-url"
+                    />
+                  </div>
 
-                  <FormField
-                    control={form.control}
-                    name="caption"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Caption (optional)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="Image description..." 
-                            {...field} 
-                            data-testid="input-caption"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="caption">Caption (optional)</Label>
+                    <Textarea
+                      id="caption"
+                      placeholder="Image description..."
+                      value={formData.caption}
+                      onChange={(e) => setFormData({...formData, caption: e.target.value})}
+                      rows={3}
+                      data-testid="input-caption"
+                    />
+                  </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button 
@@ -200,13 +236,14 @@ export default function AdminGallery() {
                       disabled={createMutation.isPending}
                       data-testid="submit-gallery"
                     >
+                      <Upload className="h-4 w-4 mr-2" />
                       {createMutation.isPending ? 'Adding...' : 'Add Image'}
                     </Button>
                   </div>
                 </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Gallery Grid */}
@@ -226,14 +263,14 @@ export default function AdminGallery() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {galleryImages.map((image: any) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {galleryImages.map((image) => (
               <Card key={image.id} className="overflow-hidden group" data-testid={`image-${image.id}`}>
                 <div className="relative">
                   <img 
-                    src={image.imageUrl} 
+                    src={image.image_url} 
                     alt={image.caption || 'Gallery image'} 
-                    className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-110"
+                    className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.src = 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300';
@@ -253,16 +290,16 @@ export default function AdminGallery() {
                     </div>
                   </div>
                 </div>
-                {image.caption && (
-                  <CardContent className="p-3">
-                    <p className="text-sm text-textSecondary line-clamp-2" data-testid={`caption-${image.id}`}>
+                <CardContent className="p-4">
+                  {image.caption && (
+                    <p className="text-sm text-textSecondary line-clamp-2 mb-2" data-testid={`caption-${image.id}`}>
                       {image.caption}
                     </p>
-                    <p className="text-xs text-textSecondary mt-1">
-                      {new Date(image.createdAt).toLocaleDateString()}
-                    </p>
-                  </CardContent>
-                )}
+                  )}
+                  <p className="text-xs text-textSecondary">
+                    Added {new Date(image.created_at).toLocaleDateString()}
+                  </p>
+                </CardContent>
               </Card>
             ))}
           </div>
