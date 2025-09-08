@@ -30,7 +30,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-100 p-4">
+    // Replaced the blue gradient with a simple, neutral gray background
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center pb-2 pt-8">
           {/* School Logo Section */}
@@ -136,8 +137,8 @@ export default function Login() {
         </CardContent>
       </Card>
 
-      {/* Decorative elements */}
-      <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-blue-100/50 to-transparent pointer-events-none"></div>
+      {/* This decorative element has been completely removed as requested */}
+      {/* <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-blue-100/50 to-transparent pointer-events-none"></div> */}
     </div>
   );
 }
