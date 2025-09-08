@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
@@ -13,6 +13,7 @@ interface UserProfile {
   id: string;
   full_name: string;
   email: string;
+  role_id?: number;
   roles?: {
     role_name: string;
   };
@@ -22,9 +23,10 @@ export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useLocation();
+  const initialLoad = useRef(true);
+  const redirecting = useRef(false);
 
   const fetchUserWithRole = async (userId: string): Promise<UserProfile> => {
-    console.log('Fetching user profile for ID:', userId);
     try {
       const { data, error } = await supabase
         .from('users')
@@ -43,17 +45,15 @@ export function useAuth() {
         throw error;
       }
 
-      console.log('Profile fetched successfully:', data);
       return data as UserProfile;
     } catch (error) {
       console.error('Exception fetching user profile:', error);
-      // Re-throw the error to be handled by the caller
       throw error;
     }
   };
 
   const getTargetPath = (roleName: string | undefined): string => {
-    if (!roleName) return '/';
+    if (!roleName) return '/home';
     
     switch (roleName.toLowerCase()) {
       case 'admin':
@@ -65,21 +65,43 @@ export function useAuth() {
       case 'parent':
         return '/parent';
       default:
-        return '/';
+        return '/home';
     }
   };
 
-  const handleSession = async (session: Session | null) => {
+  const shouldRedirect = (currentPath: string, targetPath: string): boolean => {
+    // Don't redirect if we're already on the target path
+    if (currentPath === targetPath) return false;
+    
+    // Don't redirect from admin sub-pages to admin dashboard
+    if (currentPath.startsWith('/admin/') && targetPath === '/admin') return false;
+    
+    // Don't redirect from other role-specific sub-pages
+    if (currentPath.startsWith('/teacher/') && targetPath === '/teacher') return false;
+    if (currentPath.startsWith('/student/') && targetPath === '/student') return false;
+    if (currentPath.startsWith('/parent/') && targetPath === '/parent') return false;
+    
+    // Don't redirect if we're on auth pages
+    if (currentPath === '/login' || currentPath === '/unauthorized') return false;
+    
+    return true;
+  };
+
+  const handleSession = async (session: Session | null, isInitialLoad: boolean = false) => {
     if (!session?.user) {
       setUser(null);
       setLoading(false);
+      
+      // Only redirect to login on initial load if not already there
+      if (isInitialLoad && location !== '/login' && !redirecting.current) {
+        redirecting.current = true;
+        setLocation('/login');
+      }
       return;
     }
 
     try {
       const userProfile = await fetchUserWithRole(session.user.id);
-
-      // Extract role_name properly from the nested structure
       const role_name = userProfile.roles?.role_name || 'unknown';
       
       const userWithRole: AppUser = {
@@ -93,25 +115,19 @@ export function useAuth() {
 
       setUser(userWithRole);
       
-      // Only redirect if we're not already on the correct page and we have a valid role
-      if (role_name && role_name !== 'unknown') {
+      // Handle redirects only on initial load
+      if (isInitialLoad && role_name && role_name !== 'unknown') {
         const targetPath = getTargetPath(role_name);
-        const currentPath = location;
         
-        // Don't redirect if we're already on the target path or on a specific admin page
-        const isAdminPage = currentPath.startsWith('/admin/');
-        const isAlreadyOnTarget = currentPath === targetPath;
-        
-        if (!isAlreadyOnTarget && !isAdminPage) {
-          console.log('Redirecting to:', targetPath, 'from:', currentPath);
+        if (shouldRedirect(location, targetPath) && !redirecting.current) {
+          redirecting.current = true;
+          console.log('Initial redirect to:', targetPath);
           setLocation(targetPath);
-        } else {
-          console.log('Staying on current page:', currentPath);
         }
       }
     } catch (error) {
       console.error('Failed to process user session:', error);
-      // Set basic user info without role details
+      // Set basic user info without role details but don't redirect
       setUser({
         ...session.user,
         id: session.user.id,
@@ -120,41 +136,41 @@ export function useAuth() {
       } as AppUser);
     } finally {
       setLoading(false);
+      initialLoad.current = false;
     }
   };
 
   useEffect(() => {
-    console.log('useAuth useEffect running');
+    console.log('useAuth useEffect running, location:', location);
 
-    // First, check existing session
+    // First, check existing session - only on initial load
     supabase.auth.getSession().then(({ data: { session } }) => {
-      handleSession(session);
+      handleSession(session, true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session);
+        console.log('Auth state changed:', event, 'initialLoad:', initialLoad.current);
         
+        // For subsequent auth changes, don't handle redirects
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-          await handleSession(session);
+          await handleSession(session, false);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
-          // Only redirect to login if we're not already there
-          if (location !== '/login') {
+          // Only redirect to login if we're not already there and not already redirecting
+          if (location !== '/login' && !redirecting.current) {
+            redirecting.current = true;
             setLocation('/login');
           }
-        } else if (event === 'INITIAL_SESSION') {
-          // Already handled by getSession() above
         }
       }
     );
 
     return () => {
-      console.log('Cleaning up auth listener');
       subscription.unsubscribe();
     };
-  }, [location]);
+  }, []); // Remove location dependency to prevent infinite loops
 
   const login = async (email: string, password: string) => {
     setLoading(true);
