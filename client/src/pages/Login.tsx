@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'wouter'; // Import Link for navigation
+import { Link } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft } from 'lucide-react'; // Import back arrow icon
+import { ArrowLeft, Home } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -22,8 +22,6 @@ export default function Login() {
 
     try {
       await login(email, password);
-      // The redirect is now handled by the useAuth hook itself
-      // after the user state is updated
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials and try again.');
     } finally {
@@ -33,21 +31,21 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md relative"> {/* Added relative positioning */}
-        
-        {/* Back to Home button */}
-        <Link href="/">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="absolute top-4 left-4 flex items-center gap-2 text-textSecondary hover:text-textPrimary"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Home
-          </Button>
-        </Link>
+      {/* Back to Home button - Fixed position for all devices */}
+      <Link href="/">
+        <Button 
+          variant="outline" 
+          className="fixed top-6 left-6 flex items-center gap-2 z-50 bg-white/90 backdrop-blur-sm hover:bg-white"
+          size="lg"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <Home className="h-4 w-4" />
+          Back to Home
+        </Button>
+      </Link>
 
-        <CardHeader className="space-y-1 text-center">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center pt-8"> {/* Added padding-top */}
           <CardTitle className="text-2xl font-bold">Treasure Home School</CardTitle>
           <CardDescription className="text-center">
             Enter your credentials to access the portal
@@ -120,11 +118,12 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Additional back to home link at bottom for mobile users */}
-          <div className="mt-4 text-center lg:hidden">
+          {/* Additional back to home link at bottom for better accessibility */}
+          <div className="mt-6 text-center">
             <Link href="/">
-              <Button variant="link" className="text-textSecondary hover:text-textPrimary">
-                ← Back to Homepage
+              <Button variant="ghost" className="text-textSecondary hover:text-textPrimary">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Return to Homepage
               </Button>
             </Link>
           </div>
