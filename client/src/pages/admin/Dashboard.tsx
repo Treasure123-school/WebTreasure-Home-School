@@ -12,11 +12,13 @@ import {
   BookOpen,
   Megaphone,
   Camera,
-  MessageSquare
+  MessageSquare,
+  ArrowRight
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter"; // ADD THIS IMPORT
 
 // Type definitions for your data
 interface UserData { 
@@ -148,9 +150,11 @@ export default function AdminDashboard() {
                 <Button onClick={() => refetch()} variant="outline" className="w-full">
                   Check for New Data
                 </Button>
-                <Button onClick={() => window.location.href = '/admin/users'} className="w-full">
-                  Manage Users
-                </Button>
+                <Link href="/admin/users">
+                  <Button className="w-full">
+                    Manage Users
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -182,87 +186,116 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - MAKE THESE CLICKABLE */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white" data-testid="stat-total-users">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold">{safeData.users.length}</div>
-                  <div className="text-blue-100">Total Users</div>
+          {/* Total Users Card - MAKE CLICKABLE */}
+          <Link href="/admin/users">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer" data-testid="stat-total-users">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-3xl font-bold">{safeData.users.length}</div>
+                    <div className="text-blue-100">Total Users</div>
+                  </div>
+                  <div className="flex items-center">
+                    <Users className="h-12 w-12 text-blue-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-blue-200" />
+                  </div>
                 </div>
-                <Users className="h-12 w-12 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white" data-testid="stat-active-exams">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold">{safeData.exams.length}</div>
-                  <div className="text-green-100">Active Exams</div>
+          {/* Active Exams Card - MAKE CLICKABLE */}
+          <Link href="/admin/exams">
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all cursor-pointer" data-testid="stat-active-exams">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-3xl font-bold">{safeData.exams.length}</div>
+                    <div className="text-green-100">Active Exams</div>
+                  </div>
+                  <div className="flex items-center">
+                    <GraduationCap className="h-12 w-12 text-green-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-green-200" />
+                  </div>
                 </div>
-                <GraduationCap className="h-12 w-12 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white" data-testid="stat-announcements">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold">{safeData.announcements.length}</div>
-                  <div className="text-orange-100">Announcements</div>
+          {/* Announcements Card - MAKE CLICKABLE */}
+          <Link href="/admin/announcements">
+            <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all cursor-pointer" data-testid="stat-announcements">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-3xl font-bold">{safeData.announcements.length}</div>
+                    <div className="text-orange-100">Announcements</div>
+                  </div>
+                  <div className="flex items-center">
+                    <Megaphone className="h-12 w-12 text-orange-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-orange-200" />
+                  </div>
                 </div>
-                <Megaphone className="h-12 w-12 text-orange-200" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white" data-testid="stat-pending-enrollments">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold">{pendingEnrollments.length}</div>
-                  <div className="text-purple-100">Pending Enrollments</div>
+          {/* Pending Enrollments Card - MAKE CLICKABLE */}
+          <Link href="/admin/enrollments">
+            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all cursor-pointer" data-testid="stat-pending-enrollments">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-3xl font-bold">{pendingEnrollments.length}</div>
+                    <div className="text-purple-100">Pending Enrollments</div>
+                  </div>
+                  <div className="flex items-center">
+                    <UserPlus className="h-12 w-12 text-purple-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-purple-200" />
+                  </div>
                 </div>
-                <UserPlus className="h-12 w-12 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Users Overview */}
-          <Card data-testid="users-overview">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                Users Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-textSecondary">Administrators</span>
-                  <Badge variant="outline">{usersByRole.admin.length}</Badge>
+          {/* Users Overview - MAKE THIS CARD CLICKABLE */}
+          <Link href="/admin/users">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid="users-overview">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Users Overview
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-textSecondary" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-textSecondary">Administrators</span>
+                    <Badge variant="outline">{usersByRole.admin.length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-textSecondary">Teachers</span>
+                    <Badge variant="outline">{usersByRole.teacher.length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-textSecondary">Students</span>
+                    <Badge variant="outline">{usersByRole.student.length}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-textSecondary">Parents</span>
+                    <Badge variant="outline">{usersByRole.parent.length}</Badge>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-textSecondary">Teachers</span>
-                  <Badge variant="outline">{usersByRole.teacher.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-textSecondary">Students</span>
-                  <Badge variant="outline">{usersByRole.student.length}</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-textSecondary">Parents</span>
-                  <Badge variant="outline">{usersByRole.parent.length}</Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Quick Stats */}
           <Card data-testid="quick-stats">
@@ -306,36 +339,41 @@ export default function AdminDashboard() {
 
         {/* Recent Activity */}
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Recent Enrollments */}
-          <Card data-testid="recent-enrollments">
-            <CardHeader>
-              <CardTitle>Recent Enrollment Requests</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendingEnrollments.length === 0 ? (
-                <p className="text-textSecondary text-center py-4">No pending enrollment requests</p>
-              ) : (
-                <div className="space-y-4">
-                  {pendingEnrollments.slice(0, 5).map((enrollment) => (
-                    <div key={enrollment.id} className="flex items-center justify-between p-3 bg-backgroundSurface rounded-lg">
-                      <div>
-                        <div className="font-medium text-textPrimary">{enrollment.child_name}</div>
-                        <div className="text-sm text-textSecondary">
-                          Parent: {enrollment.parent_name} • Age: {enrollment.child_age}
+          {/* Recent Enrollments - MAKE CLICKABLE */}
+          <Link href="/admin/enrollments">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid="recent-enrollments">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Recent Enrollment Requests
+                  <ArrowRight className="h-4 w-4 text-textSecondary" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingEnrollments.length === 0 ? (
+                  <p className="text-textSecondary text-center py-4">No pending enrollment requests</p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingEnrollments.slice(0, 5).map((enrollment) => (
+                      <div key={enrollment.id} className="flex items-center justify-between p-3 bg-backgroundSurface rounded-lg">
+                        <div>
+                          <div className="font-medium text-textPrimary">{enrollment.child_name}</div>
+                          <div className="text-sm text-textSecondary">
+                            Parent: {enrollment.parent_name} • Age: {enrollment.child_age}
+                          </div>
                         </div>
+                        <Badge 
+                          variant={enrollment.status === 'pending' ? 'secondary' : 'default'}
+                          data-testid={`enrollment-status-${enrollment.id}`}
+                        >
+                          {enrollment.status}
+                        </Badge>
                       </div>
-                      <Badge 
-                        variant={enrollment.status === 'pending' ? 'secondary' : 'default'}
-                        data-testid={`enrollment-status-${enrollment.id}`}
-                      >
-                        {enrollment.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Link>
 
           {/* Recent Messages */}
           <Card data-testid="recent-messages">
@@ -367,6 +405,34 @@ export default function AdminDashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Quick Action Buttons at Bottom */}
+        <div className="mt-8 flex flex-wrap gap-4 justify-center">
+          <Link href="/admin/users">
+            <Button className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Manage Users
+            </Button>
+          </Link>
+          <Link href="/admin/create-user">
+            <Button variant="outline" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Create New User
+            </Button>
+          </Link>
+          <Link href="/admin/announcements">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Megaphone className="h-4 w-4" />
+              Post Announcement
+            </Button>
+          </Link>
+          <Link href="/admin/exams">
+            <Button variant="outline" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Manage Exams
+            </Button>
+          </Link>
         </div>
       </div>
     </Layout>
