@@ -1,22 +1,25 @@
-// Add these imports at the top
+// Add these imports at the top with other imports
 import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 
-// Initialize Supabase admin client (add this near your other supabase initializations)
+// Initialize Supabase admin client (add after your other supabase initializations)
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // Make sure to add this to your environment variables
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Add these admin routes after your existing routes
-
-// Admin routes - User Management
+// ===== ADMIN USER MANAGEMENT ROUTES =====
 app.post('/api/admin/users', authenticateToken, async (req: any, res) => {
   try {
     const { email, password, full_name, role, class: userClass, phone, gender, dob } = req.body;
 
+    // Validation
     if (!email || !password || !full_name || !role) {
       return res.status(400).json({ message: "Email, password, full name, and role are required" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
     // Check if user already exists
@@ -91,13 +94,19 @@ app.post('/api/admin/users', authenticateToken, async (req: any, res) => {
       return res.status(400).json({ message: userError.message });
     }
 
-    // Send welcome email (you'll need to implement this based on your email service)
-    // await sendWelcomeEmail(email, password, full_name);
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(email, password, full_name, role);
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Continue even if email fails
+    }
 
     res.status(201).json({
       ...userData,
       role_name: userData.roles?.role_name
     });
+
   } catch (error: any) {
     console.error("Admin user creation error:", error);
     res.status(500).json({ message: "Failed to create user" });
@@ -106,7 +115,10 @@ app.post('/api/admin/users', authenticateToken, async (req: any, res) => {
 
 app.get('/api/admin/users', authenticateToken, async (req: any, res) => {
   try {
-    const { search, role, class: userClass } = req.query;
+    const { search, role, class: userClass, page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const offset = (pageNum - 1) * limitNum;
     
     let query = supabaseAdmin
       .from('users')
@@ -121,8 +133,9 @@ app.get('/api/admin/users', authenticateToken, async (req: any, res) => {
         gender,
         dob,
         roles (role_name)
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
 
     // Apply filters
     if (search) {
@@ -137,20 +150,55 @@ app.get('/api/admin/users', authenticateToken, async (req: any, res) => {
       query = query.eq('class', userClass);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("Error fetching users:", error);
       return res.status(500).json({ message: "Failed to fetch users" });
     }
 
-    res.json(data.map(user => ({
-      ...user,
-      role_name: user.roles?.role_name
-    })));
+    res.json({
+      users: data.map(user => ({
+        ...user,
+        role_name: user.roles?.role_name
+      })),
+      total: count,
+      page: pageNum,
+      totalPages: Math.ceil((count || 0) / limitNum)
+    });
+
   } catch (error: any) {
     console.error("Admin users fetch error:", error);
     res.status(500).json({ message: "Failed to fetch users" });
+  }
+});
+
+app.put('/api/admin/users/:id', authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { full_name, class: userClass, phone, gender, dob } = req.body;
+
+    const { error } = await supabaseAdmin
+      .from('users')
+      .update({
+        full_name,
+        class: userClass,
+        phone,
+        gender,
+        dob
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error("Error updating user:", error);
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.json({ message: "User updated successfully" });
+
+  } catch (error: any) {
+    console.error("Admin user update error:", error);
+    res.status(500).json({ message: "Failed to update user" });
   }
 });
 
@@ -174,7 +222,6 @@ app.put('/api/admin/users/:id/role', authenticateToken, async (req: any, res) =>
       return res.status(400).json({ message: "Invalid role specified" });
     }
 
-    // Update user role
     const { error } = await supabaseAdmin
       .from('users')
       .update({ role_id: roleData.id })
@@ -186,6 +233,7 @@ app.put('/api/admin/users/:id/role', authenticateToken, async (req: any, res) =>
     }
 
     res.json({ message: "User role updated successfully" });
+
   } catch (error: any) {
     console.error("Admin user role update error:", error);
     res.status(500).json({ message: "Failed to update user role" });
@@ -212,10 +260,10 @@ app.delete('/api/admin/users/:id', authenticateToken, async (req: any, res) => {
 
     if (authError) {
       console.error("Error deleting user from auth:", authError);
-      // We still return success since the user was removed from the database
     }
 
     res.json({ message: "User deleted successfully" });
+
   } catch (error: any) {
     console.error("Admin user deletion error:", error);
     res.status(500).json({ message: "Failed to delete user" });
@@ -229,7 +277,7 @@ app.post('/api/admin/users/:id/send-welcome', authenticateToken, async (req: any
     // Get user details
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
-      .select('email, full_name')
+      .select('email, full_name, roles(role_name)')
       .eq('id', id)
       .single();
 
@@ -238,7 +286,7 @@ app.post('/api/admin/users/:id/send-welcome', authenticateToken, async (req: any
     }
 
     // Generate a temporary password
-    const tempPassword = randomBytes(8).toString('hex');
+    const tempPassword = randomBytes(12).toString('hex');
     
     // Update user password
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -251,12 +299,39 @@ app.post('/api/admin/users/:id/send-welcome', authenticateToken, async (req: any
       return res.status(400).json({ message: updateError.message });
     }
 
-    // Send welcome email (implement this based on your email service)
-    // await sendWelcomeEmail(user.email, tempPassword, user.full_name);
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, tempPassword, user.full_name, user.roles?.role_name);
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+    }
 
     res.json({ message: "Welcome email sent successfully" });
+
   } catch (error: any) {
     console.error("Send welcome email error:", error);
     res.status(500).json({ message: "Failed to send welcome email" });
   }
 });
+
+// Email helper function
+async function sendWelcomeEmail(email: string, password: string, fullName: string, role: string) {
+  // Implement with your email service (SendGrid, Mailgun, etc.)
+  console.log(`Sending welcome email to ${email}`);
+  console.log(`Temporary password: ${password}`);
+  
+  // Example implementation:
+  /*
+  const sgMail = require('@sendgrid/mail');
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  
+  const msg = {
+    to: email,
+    from: 'noreply@treasurehomeschool.com',
+    subject: 'Welcome to Treasure-Home School Portal',
+    html: `<h2>Welcome ${fullName}!</h2><p>Your account has been created as ${role}.</p>`
+  };
+  
+  await sgMail.send(msg);
+  */
+}
