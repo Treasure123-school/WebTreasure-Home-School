@@ -7,7 +7,7 @@ const app = express();
 // CORS middleware
 app.use(cors({
   origin: [
-    'https://web-treasure-home-school.vercel.app',
+    'https://treasurehomeschool.vercel.app',
     'http://localhost:3000',
     'http://localhost:5173'
   ],
