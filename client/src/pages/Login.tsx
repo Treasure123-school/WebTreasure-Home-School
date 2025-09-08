@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { Link } from 'wouter'; // Import Link for navigation
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft } from 'lucide-react'; // Import back arrow icon
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -31,13 +33,27 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Treasure Home School</CardTitle>
+      <Card className="w-full max-w-md relative"> {/* Added relative positioning */}
+        
+        {/* Back to Home button */}
+        <Link href="/">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="absolute top-4 left-4 flex items-center gap-2 text-textSecondary hover:text-textPrimary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Button>
+        </Link>
+
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">Treasure Home School</CardTitle>
           <CardDescription className="text-center">
             Enter your credentials to access the portal
           </CardDescription>
         </CardHeader>
+        
         <CardContent>
           {error && (
             <Alert variant="destructive" className="mb-4">
@@ -102,6 +118,15 @@ export default function Login() {
             <p className="text-blue-600 text-xs mt-2">
               <strong>Note:</strong> You can change this password after first login
             </p>
+          </div>
+
+          {/* Additional back to home link at bottom for mobile users */}
+          <div className="mt-4 text-center lg:hidden">
+            <Link href="/">
+              <Button variant="link" className="text-textSecondary hover:text-textPrimary">
+                ← Back to Homepage
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
