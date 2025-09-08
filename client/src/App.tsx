@@ -37,15 +37,27 @@ function ProtectedRoute({ children, requiredRole }: {
   }
 
   if (!isAuthenticated) {
-    // Use setTimeout to avoid React state update during render
-    setTimeout(() => setLocation('/login'), 100);
-    return <LoadingSpinner message="Redirecting to login..." />;
+    return <Redirect to="/login" />;
   }
 
   if (requiredRole && user?.role_name !== requiredRole) {
     return <Unauthorized />;
   }
 
+  return <>{children}</>;
+}
+
+// Public Route Component - allows access to all, but shows different content for authenticated users
+function PublicRoute({ children }: { 
+  children: React.ReactNode;
+}) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading..." />;
+  }
+
+  // If user is authenticated, show the public page but with a welcome message
   return <>{children}</>;
 }
 
@@ -58,34 +70,42 @@ function Router() {
     return <LoadingSpinner message="Loading application..." />;
   }
 
-  // Handle authenticated users trying to access public routes
-  if (isAuthenticated && (location === '/' || location === '/login')) {
-    let targetPath = '/home';
-    switch (user?.role_name?.toLowerCase()) {
-      case 'admin':
-        targetPath = '/admin';
-        break;
-      case 'teacher':
-        targetPath = '/teacher';
-        break;
-      case 'student':
-        targetPath = '/student';
-        break;
-      case 'parent':
-        targetPath = '/parent';
-        break;
-      default:
-        targetPath = '/home';
-    }
-    
-    return <Redirect to={targetPath} />;
-  }
-
   return (
     <Switch>
-      {/* Public Routes - Accessible to all */}
-      <Route path="/" component={Landing} />
-      <Route path="/login" component={Login} />
+      {/* Public Routes - Accessible to all, with different content for auth users */}
+      <Route path="/">
+        <PublicRoute>
+          <Landing />
+        </PublicRoute>
+      </Route>
+      
+      <Route path="/login">
+        {isAuthenticated ? (
+          // If already authenticated, redirect to appropriate dashboard
+          (() => {
+            let targetPath = '/home';
+            switch (user?.role_name?.toLowerCase()) {
+              case 'admin':
+                targetPath = '/admin';
+                break;
+              case 'teacher':
+                targetPath = '/teacher';
+                break;
+              case 'student':
+                targetPath = '/student';
+                break;
+              case 'parent':
+                targetPath = '/parent';
+                break;
+            }
+            return <Redirect to={targetPath} />;
+          })()
+        ) : (
+          // If not authenticated, show login page
+          <Login />
+        )}
+      </Route>
+
       <Route path="/unauthorized" component={Unauthorized} />
 
       {/* Protected Routes */}
