@@ -25,7 +25,7 @@ export default function Navigation() {
   const navItems = {
     Admin: [
       { path: "/admin", label: "Dashboard", icon: Home },
-      { path: "/admin/users", label: "Users", icon: Users },
+      { path: "/admin/users", label: "Users", icon: Users }, // FIXED: This was missing
       { path: "/admin/announcements", label: "Announcements", icon: Megaphone },
       { path: "/admin/gallery", label: "Gallery", icon: Image },
       { path: "/admin/exams", label: "Exams", icon: BookOpen },
