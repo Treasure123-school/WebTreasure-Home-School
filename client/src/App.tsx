@@ -10,7 +10,6 @@ import AdminDashboard from "@/pages/admin/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import StudentDashboard from "@/pages/student/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
-import ExamInterface from "@/pages/exam-interface";
 import Login from "@/pages/Login";
 import Unauthorized from "@/pages/unauthorized";
 import AdminUsers from "@/pages/admin/Users";
@@ -19,9 +18,6 @@ import AdminGallery from "@/pages/admin/Gallery";
 import AdminExams from "@/pages/admin/Exams";
 import AdminEnrollments from "@/pages/admin/Enrollments";
 import CreateUser from "@/pages/admin/CreateUser";
-import TeacherExams from "@/pages/teacher/Exams";
-import StudentResults from "@/pages/student/Results";
-import TakeExam from "@/pages/student/TakeExam";
 import { queryClient } from "./lib/queryClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
@@ -62,7 +58,7 @@ function PublicRoute({ children }: {
   return <>{children}</>;
 }
 
-function Router() {
+function AppRouter() {
   const { isLoading } = useAuth();
 
   if (isLoading) {
@@ -72,12 +68,6 @@ function Router() {
   return (
     <Switch>
       {/* Public Routes */}
-      <Route path="/">
-        <PublicRoute>
-          <Landing />
-        </PublicRoute>
-      </Route>
-      
       <Route path="/login">
         <PublicRoute>
           <Login />
@@ -86,7 +76,20 @@ function Router() {
 
       <Route path="/unauthorized" component={Unauthorized} />
 
-      {/* Protected Routes - Specific routes first */}
+      <Route path="/">
+        <PublicRoute>
+          <Landing />
+        </PublicRoute>
+      </Route>
+
+      {/* Protected Routes */}
+      <Route path="/home">
+        <ProtectedRoute>
+          <Home />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Admin Routes */}
       <Route path="/admin/create-user">
         <ProtectedRoute requiredRole="Admin">
           <CreateUser />
@@ -129,28 +132,10 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Other role routes */}
-      <Route path="/teacher/exams">
-        <ProtectedRoute requiredRole="Teacher">
-          <TeacherExams />
-        </ProtectedRoute>
-      </Route>
-
+      {/* Other role routes - simplified for now */}
       <Route path="/teacher">
         <ProtectedRoute requiredRole="Teacher">
           <TeacherDashboard />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/student/results">
-        <ProtectedRoute requiredRole="Student">
-          <StudentResults />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/exam/:examId">
-        <ProtectedRoute requiredRole="Student">
-          <TakeExam />
         </ProtectedRoute>
       </Route>
 
@@ -166,19 +151,6 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      <Route path="/home">
-        <ProtectedRoute>
-          <Home />
-        </ProtectedRoute>
-      </Route>
-
-      {/* Shared exam route */}
-      <Route path="/exam/:examId/interface">
-        <ProtectedRoute>
-          <ExamInterface />
-        </ProtectedRoute>
-      </Route>
-
       {/* 404 Route */}
       <Route component={NotFound} />
     </Switch>
@@ -190,7 +162,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <AppRouter />
       </TooltipProvider>
     </QueryClientProvider>
   );
