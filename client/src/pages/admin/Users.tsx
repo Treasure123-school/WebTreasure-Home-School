@@ -23,13 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Users, UserPlus, Edit2, MoreHorizontal } from "lucide-react";
+import { Search, Users, UserPlus, Edit2, MoreHorizontal, Mail, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import CreateUser from "./CreateUser";
 
 interface User {
   id: string;
@@ -40,6 +42,8 @@ interface User {
   created_at: string;
   role_name: string;
   role_id: number;
+  gender: string | null;
+  dob: string | null;
 }
 
 export default function AdminUsers() {
@@ -49,6 +53,8 @@ export default function AdminUsers() {
   
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [classFilter, setClassFilter] = useState("all");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
@@ -65,7 +71,7 @@ export default function AdminUsers() {
   }, [user, authLoading, toast]);
 
   // Fetch users from Supabase
-  const { data: users = [], isLoading: usersLoading } = useQuery({
+  const { data: users = [], isLoading: usersLoading, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -78,6 +84,8 @@ export default function AdminUsers() {
           class,
           created_at,
           role_id,
+          gender,
+          dob,
           roles (role_name)
         `)
         .order('created_at', { ascending: false });
@@ -91,7 +99,9 @@ export default function AdminUsers() {
         ...user,
         role_name: user.roles?.role_name || 'Unknown',
         phone: user.phone || '-',
-        class: user.class || '-'
+        class: user.class || '-',
+        gender: user.gender || '-',
+        dob: user.dob || '-'
       }));
     },
     enabled: !!user && user.role_name === 'admin',
@@ -134,55 +144,62 @@ export default function AdminUsers() {
     },
   });
 
-  // Create new user mutation
-  const createUserMutation = useMutation({
-    mutationFn: async (userData: { email: string; password: string; full_name: string; role: string }) => {
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            full_name: userData.full_name,
-            role: userData.role
-          }
-        }
-      });
-
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      // First delete from auth users table (requires admin privileges)
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
       if (authError) throw authError;
 
-      // 2. Get role_id
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('role_name', userData.role.charAt(0).toUpperCase() + userData.role.slice(1))
-        .single();
-
-      if (!roleData) throw new Error('Role not found');
-
-      // 3. Add to users table
-      const { error: dbError } = await supabase
+      // Then delete from users table
+      const { error } = await supabase
         .from('users')
-        .insert({
-          id: authData.user?.id,
-          email: userData.email,
-          full_name: userData.full_name,
-          role_id: roleData.id
-        });
+        .delete()
+        .eq('id', userId);
 
-      if (dbError) throw dbError;
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({
-        title: "User Created",
-        description: "User has been created successfully.",
+        title: "User Deleted",
+        description: "User has been deleted successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create user.",
+        description: error.message || "Failed to delete user.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send welcome email mutation
+  const sendWelcomeEmailMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch(`/api/admin/users/${userId}/send-welcome`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user?.token}`
+        }
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Failed to send welcome email');
+      }
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email Sent",
+        description: "Welcome email has been sent successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send welcome email.",
         variant: "destructive",
       });
     },
@@ -214,8 +231,16 @@ export default function AdminUsers() {
     
     const matchesRole = roleFilter === "all" || u.role_name.toLowerCase() === roleFilter;
     
-    return matchesSearch && matchesRole;
+    const matchesClass = classFilter === "all" || u.class === classFilter;
+    
+    return matchesSearch && matchesRole && matchesClass;
   });
+
+  // Get unique classes for filter
+  const uniqueClasses = Array.from(new Set(users
+    .filter((u: User) => u.class && u.class !== '-')
+    .map((u: User) => u.class as string)
+  ));
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role.toLowerCase()) {
@@ -236,16 +261,47 @@ export default function AdminUsers() {
     updateRoleMutation.mutate({ userId, newRole });
   };
 
-  const handleCreateUser = async (userData: { email: string; password: string; full_name: string; role: string }) => {
-    createUserMutation.mutate(userData);
+  const handleDeleteUser = (userId: string, userName: string) => {
+    if (confirm(`Are you sure you want to delete ${userName}? This action cannot be undone.`)) {
+      deleteUserMutation.mutate(userId);
+    }
+  };
+
+  const handleSendWelcomeEmail = (userId: string, userName: string) => {
+    if (confirm(`Send welcome email to ${userName}?`)) {
+      sendWelcomeEmailMutation.mutate(userId);
+    }
   };
 
   return (
     <Layout type="portal">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="admin-users">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-textPrimary mb-2">User Management</h1>
-          <p className="text-textSecondary">Manage user accounts and roles</p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-textPrimary mb-2">User Management</h1>
+            <p className="text-textSecondary">Manage user accounts and roles</p>
+          </div>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create New User</DialogTitle>
+                <DialogDescription>
+                  Add a new user to the system. They will receive an email with login instructions.
+                </DialogDescription>
+              </DialogHeader>
+              <CreateUser onSuccess={() => {
+                setIsCreateDialogOpen(false);
+                refetch();
+              }} />
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Filters */}
@@ -262,8 +318,9 @@ export default function AdminUsers() {
                   data-testid="search-users"
                 />
               </div>
+              
               <Select value={roleFilter} onValueChange={setRoleFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]" data-testid="filter-role">
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="filter-role">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -274,34 +331,39 @@ export default function AdminUsers() {
                   <SelectItem value="parent">Parent</SelectItem>
                 </SelectContent>
               </Select>
-              <Button 
-                onClick={() => {
-                  // Simple create user form - you can replace this with a modal
-                  const email = prompt("Enter user email:");
-                  const password = prompt("Enter temporary password:");
-                  const fullName = prompt("Enter full name:");
-                  const role = prompt("Enter role (admin/teacher/student/parent):");
-                  
-                  if (email && password && fullName && role) {
-                    handleCreateUser({ email, password, full_name: fullName, role });
-                  }
-                }}
-                className="whitespace-nowrap"
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Create User
-              </Button>
+              
+              <Select value={classFilter} onValueChange={setClassFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]" data-testid="filter-class">
+                  <SelectValue placeholder="Filter by class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {uniqueClasses.map((classOption) => (
+                    <SelectItem key={classOption} value={classOption}>
+                      {classOption}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>
 
         {/* Users Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <Users className="mr-2 h-5 w-5" />
               All Users ({filteredUsers.length})
             </CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => refetch()}
+              disabled={usersLoading}
+            >
+              Refresh
+            </Button>
           </CardHeader>
           <CardContent>
             {usersLoading ? (
@@ -312,6 +374,19 @@ export default function AdminUsers() {
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-textSecondary mx-auto mb-4" />
                 <p className="text-textSecondary">No users found</p>
+                {searchTerm || roleFilter !== 'all' || classFilter !== 'all' ? (
+                  <Button 
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setRoleFilter('all');
+                      setClassFilter('all');
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : null}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -322,6 +397,7 @@ export default function AdminUsers() {
                       <TableHead>Email</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead>Class</TableHead>
+                      <TableHead>Gender</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -349,6 +425,7 @@ export default function AdminUsers() {
                           </Badge>
                         </TableCell>
                         <TableCell>{u.class}</TableCell>
+                        <TableCell>{u.gender}</TableCell>
                         <TableCell>
                           {new Date(u.created_at).toLocaleDateString()}
                         </TableCell>
@@ -360,6 +437,14 @@ export default function AdminUsers() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleSendWelcomeEmail(u.id, u.full_name)}
+                                disabled={sendWelcomeEmailMutation.isPending}
+                                data-testid={`send-welcome-${u.id}`}
+                              >
+                                <Mail className="h-4 w-4 mr-2" />
+                                Send Welcome Email
+                              </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleRoleUpdate(u.id, 'admin')}
                                 disabled={u.role_name.toLowerCase() === 'admin' || updateRoleMutation.isPending}
@@ -387,6 +472,15 @@ export default function AdminUsers() {
                                 data-testid={`set-parent-${u.id}`}
                               >
                                 Set as Parent
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteUser(u.id, u.full_name)}
+                                disabled={deleteUserMutation.isPending}
+                                className="text-destructive focus:text-destructive"
+                                data-testid={`delete-user-${u.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete User
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
