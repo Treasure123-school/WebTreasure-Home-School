@@ -13,6 +13,8 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -20,11 +22,11 @@ export function useAuth() {
         
         if (error) {
           console.error('Error getting session:', error);
-          setIsLoading(false);
+          if (isMounted) setIsLoading(false);
           return;
         }
 
-        if (session?.user) {
+        if (session?.user && isMounted) {
           // Fetch user profile with role
           const { data: userData, error: userError } = await supabase
             .from('users')
@@ -48,13 +50,13 @@ export function useAuth() {
             role_id: userData?.role_id,
             role_name: userData?.roles?.role_name
           });
-        } else {
+        } else if (isMounted) {
           setUser(null);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -63,6 +65,8 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
+
         try {
           if (session?.user) {
             // Fetch user profile with role
@@ -93,13 +97,12 @@ export function useAuth() {
           }
         } catch (error) {
           console.error('Error in auth state change:', error);
-        } finally {
-          setIsLoading(false);
         }
       }
     );
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
