@@ -31,21 +31,8 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-100 p-4">
-      <div className="absolute top-6 left-6">
-        <Link href="/">
-          <Button 
-            variant="outline" 
-            className="flex items-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white transition-all duration-200"
-            size="sm"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Home
-          </Button>
-        </Link>
-      </div>
-
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center pb-2">
+        <CardHeader className="space-y-1 text-center pb-2 pt-8">
           {/* School Logo Section */}
           <div className="flex justify-center mb-4">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-lg">
@@ -112,8 +99,8 @@ export default function Login() {
               />
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
               disabled={loading}
               size="lg"
@@ -132,7 +119,7 @@ export default function Login() {
           {/* Security Notice */}
           <div className="mt-8 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
             <p className="text-xs text-blue-700 text-center">
-              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal. 
+              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal.
               Never share your credentials with anyone.
             </p>
           </div>
