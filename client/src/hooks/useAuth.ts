@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -11,12 +10,9 @@ interface AppUser extends User {
 
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [location, setLocation] = useLocation();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -24,9 +20,7 @@ export function useAuth() {
         
         if (error) {
           console.error('Error getting session:', error);
-          if (isMounted) {
-            setLoading(false);
-          }
+          setIsLoading(false);
           return;
         }
 
@@ -48,26 +42,19 @@ export function useAuth() {
             console.error('Error fetching user profile:', userError);
           }
 
-          if (isMounted) {
-            setUser({
-              ...session.user,
-              full_name: userData?.full_name,
-              role_id: userData?.role_id,
-              role_name: userData?.roles?.role_name
-            });
-            setLoading(false);
-          }
+          setUser({
+            ...session.user,
+            full_name: userData?.full_name,
+            role_id: userData?.role_id,
+            role_name: userData?.roles?.role_name
+          });
         } else {
-          if (isMounted) {
-            setUser(null);
-            setLoading(false);
-          }
+          setUser(null);
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error);
-        if (isMounted) {
-          setLoading(false);
-        }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -76,8 +63,6 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!isMounted) return;
-
         try {
           if (session?.user) {
             // Fetch user profile with role
@@ -105,33 +90,27 @@ export function useAuth() {
             });
           } else {
             setUser(null);
-            
-            // Only redirect to login if not already there
-            if (location !== '/login') {
-              setLocation('/login');
-            }
           }
         } catch (error) {
           console.error('Error in auth state change:', error);
         } finally {
-          setLoading(false);
+          setIsLoading(false);
         }
       }
     );
 
     return () => {
-      isMounted = false;
       subscription.unsubscribe();
     };
-  }, [location, setLocation]);
+  }, []);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     } catch (error: any) {
-      setLoading(false);
+      setIsLoading(false);
       throw new Error(error.message || 'Login failed');
     }
   };
@@ -147,7 +126,7 @@ export function useAuth() {
 
   return {
     user,
-    isLoading: loading,
+    isLoading,
     isAuthenticated: !!user,
     login,
     logout
