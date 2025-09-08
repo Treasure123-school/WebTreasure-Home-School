@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserPlus, CheckCircle, XCircle, Clock } from "lucide-react";
+import { UserPlus, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
+
+interface Enrollment {
+  id: string;
+  child_name: string;
+  parent_name: string;
+  parent_email: string;
+  parent_phone: string;
+  child_age: number;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
 
 export default function AdminEnrollments() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -33,46 +44,64 @@ export default function AdminEnrollments() {
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'admin')) {
+    if (!authLoading && (!user || user.role_name !== 'admin')) {
       toast({
         title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        description: "You need admin privileges to access this page.",
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
+        window.location.href = "/login";
+      }, 2000);
     }
-  }, [user, isLoading, toast]);
+  }, [user, authLoading, toast]);
 
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
-    queryKey: ['/api/enrollments'],
-    enabled: !!user && user.role === 'admin',
-    retry: false,
+  // Fetch enrollments from Supabase
+  const { data: enrollments = [], isLoading: enrollmentsLoading, refetch } = useQuery({
+    queryKey: ['enrollments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('enrollments')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching enrollments:', error);
+        throw error;
+      }
+
+      return data as Enrollment[];
+    },
+    enabled: !!user && user.role_name === 'admin',
   });
 
+  // Update enrollment status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string, status: string }) => {
-      await apiRequest('PUT', `/api/enrollments/${id}/status`, { status });
+      const { error } = await supabase
+        .from('enrollments')
+        .update({ status })
+        .eq('id', id);
+
+      if (error) throw error;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       toast({
         title: "Status Updated",
-        description: `Enrollment has been ${variables.status}.`,
+        description: "Enrollment status has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['enrollments'] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to update enrollment status.",
+        description: error.message || "Failed to update enrollment status.",
         variant: "destructive",
       });
     },
   });
 
-  if (isLoading || !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -80,7 +109,18 @@ export default function AdminEnrollments() {
     );
   }
 
-  const filteredEnrollments = enrollments.filter((enrollment: any) => 
+  if (!user || user.role_name !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
+          <p className="text-textSecondary">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const filteredEnrollments = enrollments.filter((enrollment) => 
     statusFilter === "all" || enrollment.status === statusFilter
   );
 
@@ -116,65 +156,75 @@ export default function AdminEnrollments() {
 
   const statsData = {
     total: enrollments.length,
-    pending: enrollments.filter((e: any) => e.status === 'pending').length,
-    approved: enrollments.filter((e: any) => e.status === 'approved').length,
-    rejected: enrollments.filter((e: any) => e.status === 'rejected').length,
+    pending: enrollments.filter((e) => e.status === 'pending').length,
+    approved: enrollments.filter((e) => e.status === 'approved').length,
+    rejected: enrollments.filter((e) => e.status === 'rejected').length,
   };
 
   return (
     <Layout type="portal">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="admin-enrollments">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-textPrimary mb-2">Enrollment Management</h1>
-          <p className="text-textSecondary">Review and manage student enrollment requests</p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-textPrimary mb-2">Enrollment Management</h1>
+            <p className="text-textSecondary">Review and manage student enrollment requests</p>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => refetch()}
+            disabled={enrollmentsLoading}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-textPrimary">{statsData.total}</div>
-                  <div className="text-textSecondary">Total Requests</div>
+                  <div className="text-2xl font-bold">{statsData.total}</div>
+                  <div className="text-blue-100">Total Requests</div>
                 </div>
-                <UserPlus className="h-8 w-8 text-textSecondary" />
+                <UserPlus className="h-8 w-8 text-blue-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-yellow-600">{statsData.pending}</div>
-                  <div className="text-textSecondary">Pending</div>
+                  <div className="text-2xl font-bold">{statsData.pending}</div>
+                  <div className="text-yellow-100">Pending</div>
                 </div>
-                <Clock className="h-8 w-8 text-yellow-600" />
+                <Clock className="h-8 w-8 text-yellow-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-green-600">{statsData.approved}</div>
-                  <div className="text-textSecondary">Approved</div>
+                  <div className="text-2xl font-bold">{statsData.approved}</div>
+                  <div className="text-green-100">Approved</div>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-8 w-8 text-green-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold text-red-600">{statsData.rejected}</div>
-                  <div className="text-textSecondary">Rejected</div>
+                  <div className="text-2xl font-bold">{statsData.rejected}</div>
+                  <div className="text-red-100">Rejected</div>
                 </div>
-                <XCircle className="h-8 w-8 text-red-600" />
+                <XCircle className="h-8 w-8 text-red-200" />
               </div>
             </CardContent>
           </Card>
@@ -210,7 +260,7 @@ export default function AdminEnrollments() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <UserPlus className="mr-2 h-5 w-5" />
-              Enrollment Requests
+              Enrollment Requests ({filteredEnrollments.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -241,28 +291,28 @@ export default function AdminEnrollments() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEnrollments.map((enrollment: any) => (
+                    {filteredEnrollments.map((enrollment) => (
                       <TableRow key={enrollment.id} data-testid={`enrollment-row-${enrollment.id}`}>
                         <TableCell>
                           <div>
                             <div className="font-medium text-textPrimary">
-                              {enrollment.childName}
+                              {enrollment.child_name}
                             </div>
                             <div className="text-sm text-textSecondary">
-                              Age: {enrollment.childAge} years old
+                              Age: {enrollment.child_age} years
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
                             <div className="font-medium text-textPrimary">
-                              {enrollment.parentName}
+                              {enrollment.parent_name}
                             </div>
                             <div className="text-sm text-textSecondary">
-                              {enrollment.parentEmail}
+                              {enrollment.parent_email}
                             </div>
                             <div className="text-sm text-textSecondary">
-                              {enrollment.parentPhone}
+                              {enrollment.parent_phone}
                             </div>
                           </div>
                         </TableCell>
@@ -278,7 +328,7 @@ export default function AdminEnrollments() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {new Date(enrollment.createdAt).toLocaleDateString()}
+                          {new Date(enrollment.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
@@ -289,6 +339,7 @@ export default function AdminEnrollments() {
                                   onClick={() => handleStatusUpdate(enrollment.id, 'approved')}
                                   disabled={updateStatusMutation.isPending}
                                   data-testid={`approve-${enrollment.id}`}
+                                  className="bg-green-600 hover:bg-green-700"
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" />
                                   Approve
