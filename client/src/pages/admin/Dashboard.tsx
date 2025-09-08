@@ -18,7 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter"; // ADD THIS IMPORT
+import { Link } from "wouter"; // Make sure this import is there
 
 // Type definitions for your data
 interface UserData { 
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Users Card - MAKE CLICKABLE */}
           <Link href="/admin/users">
-            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer" data-testid="stat-total-users">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer group" data-testid="stat-total-users">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -199,7 +199,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center">
                     <Users className="h-12 w-12 text-blue-200" />
-                    <ArrowRight className="h-5 w-5 ml-2 text-blue-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-blue-200 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </CardContent>
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
 
           {/* Active Exams Card - MAKE CLICKABLE */}
           <Link href="/admin/exams">
-            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all cursor-pointer" data-testid="stat-active-exams">
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all cursor-pointer group" data-testid="stat-active-exams">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -217,7 +217,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center">
                     <GraduationCap className="h-12 w-12 text-green-200" />
-                    <ArrowRight className="h-5 w-5 ml-2 text-green-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-green-200 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </CardContent>
@@ -226,7 +226,7 @@ export default function AdminDashboard() {
 
           {/* Announcements Card - MAKE CLICKABLE */}
           <Link href="/admin/announcements">
-            <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all cursor-pointer" data-testid="stat-announcements">
+            <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all cursor-pointer group" data-testid="stat-announcements">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center">
                     <Megaphone className="h-12 w-12 text-orange-200" />
-                    <ArrowRight className="h-5 w-5 ml-2 text-orange-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-orange-200 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </CardContent>
@@ -244,7 +244,7 @@ export default function AdminDashboard() {
 
           {/* Pending Enrollments Card - MAKE CLICKABLE */}
           <Link href="/admin/enrollments">
-            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all cursor-pointer" data-testid="stat-pending-enrollments">
+            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all cursor-pointer group" data-testid="stat-pending-enrollments">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -253,7 +253,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="flex items-center">
                     <UserPlus className="h-12 w-12 text-purple-200" />
-                    <ArrowRight className="h-5 w-5 ml-2 text-purple-200" />
+                    <ArrowRight className="h-5 w-5 ml-2 text-purple-200 group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>
               </CardContent>
@@ -264,14 +264,14 @@ export default function AdminDashboard() {
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
           {/* Users Overview - MAKE THIS CARD CLICKABLE */}
           <Link href="/admin/users">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid="users-overview">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer group" data-testid="users-overview">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Users className="mr-2 h-5 w-5" />
                     Users Overview
                   </div>
-                  <ArrowRight className="h-4 w-4 text-textSecondary" />
+                  <ArrowRight className="h-4 w-4 text-textSecondary group-hover:text-primary transition-colors" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -341,11 +341,11 @@ export default function AdminDashboard() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Recent Enrollments - MAKE CLICKABLE */}
           <Link href="/admin/enrollments">
-            <Card className="hover:shadow-md transition-shadow cursor-pointer" data-testid="recent-enrollments">
+            <Card className="hover:shadow-md transition-shadow cursor-pointer group" data-testid="recent-enrollments">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Recent Enrollment Requests
-                  <ArrowRight className="h-4 w-4 text-textSecondary" />
+                  <ArrowRight className="h-4 w-4 text-textSecondary group-hover:text-primary transition-colors" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -431,6 +431,18 @@ export default function AdminDashboard() {
             <Button variant="outline" className="flex items-center gap-2">
               <BookOpen className="h-4 w-4" />
               Manage Exams
+            </Button>
+          </Link>
+          <Link href="/admin/gallery">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              Manage Gallery
+            </Button>
+          </Link>
+          <Link href="/admin/enrollments">
+            <Button variant="outline" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              View Enrollments
             </Button>
           </Link>
         </div>
