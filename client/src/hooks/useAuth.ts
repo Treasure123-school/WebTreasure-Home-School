@@ -9,12 +9,21 @@ interface AppUser extends User {
   role_name?: string;
 }
 
+interface UserProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  roles?: {
+    role_name: string;
+  };
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useLocation();
 
-  const fetchUserWithRole = async (userId: string) => {
+  const fetchUserWithRole = async (userId: string): Promise<UserProfile> => {
     console.log('Fetching user profile for ID:', userId);
     try {
       const { data, error } = await supabase
@@ -23,6 +32,7 @@ export function useAuth() {
           id,
           full_name,
           email,
+          role_id,
           roles (role_name)
         `)
         .eq('id', userId)
@@ -30,36 +40,22 @@ export function useAuth() {
 
       if (error) {
         console.error('Error fetching user profile:', error);
-        // Return fallback data instead of throwing
-        return {
-          id: userId,
-          full_name: 'Admin User',
-          email: 'admin@treasure.edu',
-          roles: { role_name: 'Admin' }
-        };
+        throw error;
       }
 
       console.log('Profile fetched successfully:', data);
-      return data;
+      return data as UserProfile;
     } catch (error) {
       console.error('Exception fetching user profile:', error);
-      // Return fallback data
-      return {
-        id: userId,
-        full_name: 'Admin User',
-        email: 'admin@treasure.edu',
-        roles: { role_name: 'Admin' }
-      };
+      // Re-throw the error to be handled by the caller
+      throw error;
     }
   };
 
-  const shouldRedirect = (roleName: string, currentPath: string) => {
-    const targetPath = getTargetPath(roleName);
-    return currentPath !== targetPath;
-  };
-
-  const getTargetPath = (roleName: string) => {
-    switch (roleName?.toLowerCase()) {
+  const getTargetPath = (roleName: string | undefined): string => {
+    if (!roleName) return '/';
+    
+    switch (roleName.toLowerCase()) {
       case 'admin':
         return '/admin';
       case 'teacher':
@@ -83,26 +79,45 @@ export function useAuth() {
     try {
       const userProfile = await fetchUserWithRole(session.user.id);
 
-      const userWithRole = {
+      // Extract role_name properly from the nested structure
+      const role_name = userProfile.roles?.role_name || 'unknown';
+      
+      const userWithRole: AppUser = {
         ...session.user,
-        ...userProfile,
-        role_name: userProfile.roles?.role_name || 'default'
+        id: session.user.id,
+        email: session.user.email || '',
+        role_id: userProfile.role_id,
+        full_name: userProfile.full_name,
+        role_name: role_name
       };
 
-      setUser(userWithRole as AppUser);
+      setUser(userWithRole);
       
-      // Only redirect if we're not already on the correct page
-      const targetPath = getTargetPath(userWithRole.role_name);
-      if (shouldRedirect(userWithRole.role_name, location)) {
-        console.log('Redirecting to:', targetPath);
-        setLocation(targetPath);
-      } else {
-        console.log('Already on correct page:', location);
+      // Only redirect if we're not already on the correct page and we have a valid role
+      if (role_name && role_name !== 'unknown') {
+        const targetPath = getTargetPath(role_name);
+        const currentPath = location;
+        
+        // Don't redirect if we're already on the target path or on a specific admin page
+        const isAdminPage = currentPath.startsWith('/admin/');
+        const isAlreadyOnTarget = currentPath === targetPath;
+        
+        if (!isAlreadyOnTarget && !isAdminPage) {
+          console.log('Redirecting to:', targetPath, 'from:', currentPath);
+          setLocation(targetPath);
+        } else {
+          console.log('Staying on current page:', currentPath);
+        }
       }
     } catch (error) {
       console.error('Failed to process user session:', error);
-      // Don't sign out automatically, just set loading to false
-      setUser(null);
+      // Set basic user info without role details
+      setUser({
+        ...session.user,
+        id: session.user.id,
+        email: session.user.email || '',
+        role_name: 'unknown'
+      } as AppUser);
     } finally {
       setLoading(false);
     }
@@ -117,10 +132,11 @@ export function useAuth() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log('Auth state changed:', event, session);
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          handleSession(session);
+        
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          await handleSession(session);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
@@ -138,7 +154,7 @@ export function useAuth() {
       console.log('Cleaning up auth listener');
       subscription.unsubscribe();
     };
-  }, [location]); // Add location to dependencies
+  }, [location]);
 
   const login = async (email: string, password: string) => {
     setLoading(true);
