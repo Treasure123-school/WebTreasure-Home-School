@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // ADD useEffect
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter"; // ADD useLocation
 import { ArrowLeft, RefreshCw } from "lucide-react";
 
 const CLASS_OPTIONS = [
@@ -20,6 +20,7 @@ export default function CreateUser() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location, setLocation] = useLocation(); // ADD this
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,6 +33,20 @@ export default function CreateUser() {
   });
   const [loading, setLoading] = useState(false);
 
+  // ADD this useEffect to check authentication
+  useEffect(() => {
+    if (!user || user.role_name !== 'admin') {
+      toast({
+        title: "Unauthorized",
+        description: "Redirecting to dashboard...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        setLocation('/admin');
+      }, 2000);
+    }
+  }, [user, toast, setLocation]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -41,7 +56,7 @@ export default function CreateUser() {
         throw new Error('Not authenticated');
       }
 
-      // Validation
+      // Validate required fields based on role
       if (formData.role === 'student' && !formData.class) {
         throw new Error('Class is required for students');
       }
@@ -50,6 +65,7 @@ export default function CreateUser() {
         throw new Error('Password must be at least 6 characters');
       }
 
+      // Call the secure backend endpoint to create the user
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
@@ -92,6 +108,7 @@ export default function CreateUser() {
         dob: ''
       });
       
+      // Invalidate users query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['users'] });
       
     } catch (error: any) {
@@ -114,6 +131,15 @@ export default function CreateUser() {
     }
     setFormData({...formData, password});
   };
+
+  // ADD loading state
+  if (!user || user.role_name !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
