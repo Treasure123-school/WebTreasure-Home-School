@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 
-// Define class options based on Nigerian education system
 const CLASS_OPTIONS = [
   'Pre-Nursery', 'Nursery 1', 'Nursery 2', 'Kindergarten',
   'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
@@ -40,12 +41,15 @@ export default function CreateUser() {
         throw new Error('Not authenticated');
       }
 
-      // Validate required fields based on role
+      // Validation
       if (formData.role === 'student' && !formData.class) {
         throw new Error('Class is required for students');
       }
 
-      // Call the secure backend endpoint to create the user
+      if (formData.password.length < 6) {
+        throw new Error('Password must be at least 6 characters');
+      }
+
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
@@ -72,7 +76,7 @@ export default function CreateUser() {
 
       toast({
         title: "Success",
-        description: "User created successfully. An email has been sent with login credentials.",
+        description: "User created successfully. A welcome email has been sent.",
         variant: "success",
       });
       
@@ -88,7 +92,6 @@ export default function CreateUser() {
         dob: ''
       });
       
-      // Invalidate users query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['users'] });
       
     } catch (error: any) {
@@ -103,137 +106,226 @@ export default function CreateUser() {
     }
   };
 
+  const generateRandomPassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData({...formData, password});
+  };
+
   return (
-    <div className="container mx-auto p-6">
-      <Card className="max-w-2xl mx-auto">
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Link href="/admin/users">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-textPrimary">Create New User</h1>
+            <p className="text-textSecondary">Add new members to the school portal system</p>
+          </div>
+        </div>
+      </div>
+
+      <Card>
         <CardHeader>
-          <CardTitle>Create New User</CardTitle>
-          <CardDescription>Add new students, teachers, parents, or admins to the system</CardDescription>
+          <CardTitle>User Information</CardTitle>
+          <CardDescription>
+            Complete all required fields to create a new user account. The user will receive login credentials via email.
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  required
-                  placeholder="user@example.com"
-                />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basic Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    required
+                    placeholder="user@example.com"
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({...formData, password: e.target.value})}
+                      required
+                      placeholder="Minimum 6 characters"
+                      minLength={6}
+                      className="flex-1"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={generateRandomPassword}
+                      className="whitespace-nowrap"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Generate
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="password">Temporary Password *</Label>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name *</Label>
                 <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  id="fullName"
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                   required
-                  placeholder="Minimum 6 characters"
-                  minLength={6}
+                  placeholder="John Doe"
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="fullName">Full Name *</Label>
-              <Input
-                id="fullName"
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                required
-                placeholder="John Doe"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="role">Role *</Label>
-                <Select 
-                  value={formData.role} 
-                  onValueChange={(value) => setFormData({...formData, role: value, class: value !== 'student' ? '' : formData.class})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="teacher">Teacher</SelectItem>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="parent">Parent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.role === 'student' && (
-                <div>
-                  <Label htmlFor="class">Class *</Label>
+            {/* Role and Class Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Role & Classification</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role *</Label>
                   <Select 
-                    value={formData.class} 
-                    onValueChange={(value) => setFormData({...formData, class: value})}
+                    value={formData.role} 
+                    onValueChange={(value) => setFormData({
+                      ...formData, 
+                      role: value, 
+                      class: value !== 'student' ? '' : formData.class
+                    })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
+                      <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      {CLASS_OPTIONS.map((classOption) => (
-                        <SelectItem key={classOption} value={classOption}>
-                          {classOption}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="teacher">Teacher</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="parent">Parent</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+
+                {formData.role === 'student' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="class">Class *</Label>
+                    <Select 
+                      value={formData.class} 
+                      onValueChange={(value) => setFormData({...formData, class: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CLASS_OPTIONS.map((classOption) => (
+                          <SelectItem key={classOption} value={classOption}>
+                            {classOption}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
+            {/* Additional Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Additional Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="+234 800 000 0000"
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select 
+                    value={formData.gender} 
+                    onValueChange={(value: 'Male' | 'Female') => setFormData({...formData, gender: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="dob">Date of Birth</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  placeholder="+234 800 000 0000"
+                  id="dob"
+                  type="date"
+                  value={formData.dob}
+                  onChange={(e) => setFormData({...formData, dob: e.target.value})}
+                  className="w-full"
                 />
               </div>
+            </div>
 
-              <div>
-                <Label htmlFor="gender">Gender</Label>
-                <Select 
-                  value={formData.gender} 
-                  onValueChange={(value: 'Male' | 'Female') => setFormData({...formData, gender: value})}
+            {/* Form Actions */}
+            <div className="flex space-x-4 pt-4 border-t">
+              <Button 
+                type="submit" 
+                disabled={loading} 
+                className="flex-1 bg-primary hover:bg-primary/90"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin mr-2">
+                      <RefreshCw className="h-4 w-4" />
+                    </div>
+                    Creating User...
+                  </>
+                ) : (
+                  'Create User'
+                )}
+              </Button>
+              
+              <Link href="/admin/users">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  className="flex-1"
+                  size="lg"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  Cancel
+                </Button>
+              </Link>
             </div>
-
-            <div>
-              <Label htmlFor="dob">Date of Birth</Label>
-              <Input
-                id="dob"
-                type="date"
-                value={formData.dob}
-                onChange={(e) => setFormData({...formData, dob: e.target.value})}
-              />
-            </div>
-
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Creating User...' : 'Create User'}
-            </Button>
           </form>
         </CardContent>
       </Card>
