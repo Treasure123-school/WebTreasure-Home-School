@@ -51,6 +51,11 @@ function PublicRoute({ children }: {
     return <LoadingSpinner message="Loading..." />;
   }
 
+  // Don't redirect from landing page even if authenticated
+  if (isAuthenticated && window.location.pathname === "/") {
+    return <>{children}</>;
+  }
+
   if (isAuthenticated) {
     return <Redirect to="/home" />;
   }
@@ -62,24 +67,30 @@ function AppRouter() {
   const { isLoading } = useAuth();
 
   if (isLoading) {
-    return <LoadingSpinner message="Loading application..." />;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Loading application..." />
+      </div>
+    );
   }
 
   return (
     <Switch>
-      {/* Public Routes */}
+      {/* Public Routes - Landing page should always be accessible */}
+      <Route path="/">
+        <PublicRoute>
+          <Landing />
+        </PublicRoute>
+      </Route>
+
       <Route path="/login">
         <PublicRoute>
           <Login />
         </PublicRoute>
       </Route>
 
-      <Route path="/unauthorized" component={Unauthorized} />
-
-      <Route path="/">
-        <PublicRoute>
-          <Landing />
-        </PublicRoute>
+      <Route path="/unauthorized">
+        <Unauthorized />
       </Route>
 
       {/* Protected Routes */}
@@ -89,7 +100,7 @@ function AppRouter() {
         </ProtectedRoute>
       </Route>
 
-      {/* Admin Routes */}
+      {/* Admin Routes - Specific routes first */}
       <Route path="/admin/create-user">
         <ProtectedRoute requiredRole="Admin">
           <CreateUser />
@@ -132,7 +143,7 @@ function AppRouter() {
         </ProtectedRoute>
       </Route>
 
-      {/* Other role routes - simplified for now */}
+      {/* Other role routes */}
       <Route path="/teacher">
         <ProtectedRoute requiredRole="Teacher">
           <TeacherDashboard />
