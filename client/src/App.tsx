@@ -18,7 +18,7 @@ import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminGallery from "@/pages/admin/Gallery";
 import AdminExams from "@/pages/admin/Exams";
 import AdminEnrollments from "@/pages/admin/Enrollments";
-import CreateUser from "@/pages/admin/CreateUser"; // ADD THIS IMPORT
+import CreateUser from "@/pages/admin/CreateUser";
 import TeacherExams from "@/pages/teacher/Exams";
 import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
@@ -117,69 +117,79 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      {/* Admin Routes */}
-      <Route path="/admin">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/users">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminUsers />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/announcements">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminAnnouncements />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/gallery">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminGallery />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/exams">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminExams />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/enrollments">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminEnrollments />
-        </ProtectedRoute>
-      </Route>
+      {/* Admin Routes - SPECIFIC ROUTES FIRST */}
       <Route path="/admin/create-user">
         <ProtectedRoute requiredRole="Admin">
           <CreateUser />
         </ProtectedRoute>
       </Route>
 
-      {/* Teacher Routes */}
-      <Route path="/teacher">
-        <ProtectedRoute requiredRole="Teacher">
-          <TeacherDashboard />
+      <Route path="/admin/users">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminUsers />
         </ProtectedRoute>
       </Route>
+
+      <Route path="/admin/announcements">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/gallery">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminGallery />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/exams">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminExams />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/admin/enrollments">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminEnrollments />
+        </ProtectedRoute>
+      </Route>
+
+      {/* General admin route LAST */}
+      <Route path="/admin">
+        <ProtectedRoute requiredRole="Admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Teacher Routes */}
       <Route path="/teacher/exams">
         <ProtectedRoute requiredRole="Teacher">
           <TeacherExams />
         </ProtectedRoute>
       </Route>
 
-      {/* Student Routes */}
-      <Route path="/student">
-        <ProtectedRoute requiredRole="Student">
-          <StudentDashboard />
+      <Route path="/teacher">
+        <ProtectedRoute requiredRole="Teacher">
+          <TeacherDashboard />
         </ProtectedRoute>
       </Route>
+
+      {/* Student Routes */}
       <Route path="/student/results">
         <ProtectedRoute requiredRole="Student">
           <StudentResults />
         </ProtectedRoute>
       </Route>
+
       <Route path="/exam/:examId">
         <ProtectedRoute requiredRole="Student">
           <TakeExam />
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/student">
+        <ProtectedRoute requiredRole="Student">
+          <StudentDashboard />
         </ProtectedRoute>
       </Route>
 
