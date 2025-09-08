@@ -18,6 +18,7 @@ import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminGallery from "@/pages/admin/Gallery";
 import AdminExams from "@/pages/admin/Exams";
 import AdminEnrollments from "@/pages/admin/Enrollments";
+import CreateUser from "@/pages/admin/CreateUser"; // ADD THIS IMPORT
 import TeacherExams from "@/pages/teacher/Exams";
 import StudentResults from "@/pages/student/Results";
 import TakeExam from "@/pages/student/TakeExam";
@@ -57,7 +58,6 @@ function PublicRoute({ children }: {
     return <LoadingSpinner message="Loading..." />;
   }
 
-  // If user is authenticated, show the public page but with a welcome message
   return <>{children}</>;
 }
 
@@ -97,6 +97,8 @@ function Router() {
               case 'parent':
                 targetPath = '/parent';
                 break;
+              default:
+                targetPath = '/home';
             }
             return <Redirect to={targetPath} />;
           })()
@@ -144,6 +146,11 @@ function Router() {
       <Route path="/admin/enrollments">
         <ProtectedRoute requiredRole="Admin">
           <AdminEnrollments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/create-user">
+        <ProtectedRoute requiredRole="Admin">
+          <CreateUser />
         </ProtectedRoute>
       </Route>
 
