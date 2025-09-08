@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from "@/hooks/use-toast";
 
 export default function CreateUser() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -14,54 +17,51 @@ export default function CreateUser() {
     role: 'student'
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
 
     try {
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-            role: formData.role
-          }
-        }
+      if (!user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the secure backend endpoint to create the user
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.fullName,
+          role: formData.role
+        }),
       });
 
-      if (authError) throw authError;
+      const result = await response.json();
 
-      // 2. Get role_id based on role name
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('role_name', formData.role.charAt(0).toUpperCase() + formData.role.slice(1))
-        .single();
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to create user');
+      }
 
-      if (!roleData) throw new Error('Role not found');
-
-      // 3. Add to users table
-      const { error: dbError } = await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: formData.email,
-          full_name: formData.fullName,
-          role_id: roleData.id
-        });
-
-      if (dbError) throw dbError;
-
-      setMessage('User created successfully!');
+      toast({
+        title: "Success",
+        description: "User created successfully.",
+        variant: "success",
+      });
       setFormData({ email: '', password: '', fullName: '', role: 'student' });
       
     } catch (error: any) {
-      setMessage('Error: ' + error.message);
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create user",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -127,12 +127,6 @@ export default function CreateUser() {
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Creating User...' : 'Create User'}
             </Button>
-
-            {message && (
-              <div className={`p-3 rounded-md ${message.includes('Error') ? 'bg-destructive text-destructive-foreground' : 'bg-green-100 text-green-800'}`}>
-                {message}
-              </div>
-            )}
           </form>
         </CardContent>
       </Card>
