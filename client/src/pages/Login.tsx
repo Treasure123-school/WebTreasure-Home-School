@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Import Avatar components
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -30,42 +31,47 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Back to Home button - Fixed position for all devices */}
-      <Link href="/">
-        <Button 
-          variant="outline" 
-          className="fixed top-6 left-6 flex items-center gap-2 z-50 bg-white/90 backdrop-blur-sm hover:bg-white"
-          size="lg"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <Home className="h-4 w-4" />
-          Back to Home
-        </Button>
-      </Link>
-
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center pt-8"> {/* Added padding-top */}
-          <CardTitle className="text-2xl font-bold">Treasure Home School</CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access the portal
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-white p-4">
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="space-y-4 text-center p-8 pb-4">
+          {/* Back to Home Button */}
+          <Link href="/">
+            <Button
+              variant="ghost"
+              className="absolute top-4 left-4 text-muted-foreground hover:text-foreground"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
+          </Link>
+          
+          {/* Logo Placeholder */}
+          <div className="flex justify-center mb-2">
+            <Avatar className="w-16 h-16 bg-primary">
+              <AvatarImage src="/path-to-school-logo.png" alt="School Logo" />
+              <AvatarFallback className="text-white text-2xl font-bold">SH</AvatarFallback>
+            </Avatar>
+          </div>
+          
+          <CardTitle className="text-3xl font-bold">Welcome Back!</CardTitle>
+          <CardDescription>
+            Sign in to your portal account to continue.
           </CardDescription>
         </CardHeader>
         
-        <CardContent>
+        <CardContent className="p-8 pt-4">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -80,7 +86,7 @@ export default function Login() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -90,9 +96,9 @@ export default function Login() {
               />
             </div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={loading}
               size="lg"
             >
@@ -102,31 +108,10 @@ export default function Login() {
                   Signing in...
                 </>
               ) : (
-                'Sign in to Portal'
+                'Sign in'
               )}
             </Button>
           </form>
-
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <h3 className="font-medium text-blue-900 mb-2 text-sm">Demo Credentials:</h3>
-            <p className="text-blue-700 text-xs">
-              <strong>Email:</strong> admin@treasure.edu<br />
-              <strong>Password:</strong> admin123
-            </p>
-            <p className="text-blue-600 text-xs mt-2">
-              <strong>Note:</strong> You can change this password after first login
-            </p>
-          </div>
-
-          {/* Additional back to home link at bottom for better accessibility */}
-          <div className="mt-6 text-center">
-            <Link href="/">
-              <Button variant="ghost" className="text-textSecondary hover:text-textPrimary">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Return to Homepage
-              </Button>
-            </Link>
-          </div>
         </CardContent>
       </Card>
     </div>
