@@ -19,7 +19,6 @@ export function useAuth() {
     initialLoadRef.current = true;
     
     const fetchUserAndRole = async (sessionUser: User | null) => {
-      console.log('Fetching user and role...');
       if (sessionUser) {
         try {
           const { data: userData, error } = await supabase
@@ -34,8 +33,6 @@ export function useAuth() {
           }
           
           const userRole = userData?.roles?.role_name;
-          console.log('User role fetched:', userRole);
-          
           setUser({
             ...sessionUser,
             role_name: userRole || null
@@ -45,15 +42,12 @@ export function useAuth() {
           setUser({ ...sessionUser, role_name: null });
         }
       } else {
-        console.log('No user session found.');
         setUser(null);
       }
       setIsLoading(false);
-      console.log('Auth check complete.');
     };
 
     const getInitialSession = async () => {
-      console.log('Getting initial session...');
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       setSession(initialSession);
       await fetchUserAndRole(initialSession?.user ?? null);
@@ -64,7 +58,6 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event);
         setSession(session);
         setIsLoading(true);
         fetchUserAndRole(session?.user ?? null);
