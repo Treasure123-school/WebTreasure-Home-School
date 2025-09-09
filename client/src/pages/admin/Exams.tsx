@@ -207,6 +207,26 @@ export default function AdminExams() {
     },
   });
 
+  const deleteQuestionMutation = useMutation({
+    mutationFn: async ({ examId, questionId }: { examId: string, questionId: string }) => {
+      await apiRequest('DELETE', `/api/exams/${examId}/questions/${questionId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Question Deleted",
+        description: "Question has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['questions', selectedExam.id] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete question.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onCreateExam = (data: z.infer<typeof examFormSchema>) => {
     createExamMutation.mutate({ ...data, createdBy: user?.id || '' });
   };
@@ -218,6 +238,12 @@ export default function AdminExams() {
   const handleDeleteExam = (id: string) => {
     if (confirm('Are you sure you want to delete this exam? This will also delete all questions.')) {
       deleteExamMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteQuestion = (examId: string, questionId: string) => {
+    if (confirm('Are you sure you want to delete this question?')) {
+      deleteQuestionMutation.mutate({ examId, questionId });
     }
   };
   
@@ -624,6 +650,16 @@ export default function AdminExams() {
                           </div>
                           <div className="text-xs text-textSecondary">
                             Correct Answer: {question.correctAnswer}
+                          </div>
+                          <div className="flex justify-end mt-4">
+                            <Button 
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteQuestion(selectedExam.id, question.id)}
+                              disabled={deleteQuestionMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
