@@ -12,6 +12,7 @@ export function useAuth() {
 
   useEffect(() => {
     const fetchUserAndRole = async (sessionUser: User | null) => {
+      console.log('Fetching user and role...');
       if (sessionUser) {
         try {
           const { data: userData, error } = await supabase
@@ -21,26 +22,31 @@ export function useAuth() {
             .single();
 
           if (error) {
+            console.error("Supabase user data fetch error:", error);
             throw error;
           }
           
+          const userRole = userData?.roles?.role_name;
+          console.log('User role fetched:', userRole);
+          
           setUser({
             ...sessionUser,
-            role_name: userData?.roles?.role_name || null // Ensure a value is always set, even if null
+            role_name: userRole || null
           });
         } catch (error) {
-          console.error("Failed to fetch user role:", error);
-          // Fallback: If role fetch fails, set user with a null role
+          console.error("Failed to fetch user role, setting to null:", error);
           setUser({ ...sessionUser, role_name: null });
         }
       } else {
-        // If there is no session user, set user to null
+        console.log('No user session found.');
         setUser(null);
       }
-      setIsLoading(false); // This is the crucial line: set loading to false after processing
+      setIsLoading(false);
+      console.log('Auth check complete.');
     };
 
     const getInitialSession = async () => {
+      console.log('Getting initial session...');
       const { data: { session } } = await supabase.auth.getSession();
       await fetchUserAndRole(session?.user ?? null);
     };
@@ -49,7 +55,8 @@ export function useAuth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setIsLoading(true); // Set loading to true while a change is being processed
+        console.log('Auth state changed:', event);
+        setIsLoading(true);
         fetchUserAndRole(session?.user ?? null);
       }
     );
