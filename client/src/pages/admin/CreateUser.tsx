@@ -8,18 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter"; // Corrected import
+import { Link, useLocation } from "wouter";
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 
-// Class options array remains the same
 const CLASS_OPTIONS = [
   'Pre-Nursery', 'Nursery 1', 'Nursery 2', 'Kindergarten',
   'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
   'JSS 1', 'JSS 2', 'JSS 3', 'SS 1', 'SS 2', 'SS 3'
 ];
 
-// Role options array based on your SQL file
 const ROLE_OPTIONS = [
   'Admin', 'Teacher', 'Student', 'Parent'
 ];
@@ -28,13 +26,13 @@ export default function CreateUser() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [, navigate] = useLocation(); // Correct way to get the navigate function
+  const [, navigate] = useLocation();
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     fullName: '',
-    role: 'Student', // Default to 'Student'
+    role: 'Student',
     class: '',
     phone: '',
     gender: '' as 'Male' | 'Female' | '',
@@ -42,7 +40,6 @@ export default function CreateUser() {
   });
   const [loading, setLoading] = useState(false);
 
-  // Redirect if not an admin
   useEffect(() => {
     if (!authLoading && (!user || user.role_name !== 'Admin')) {
       toast({
@@ -63,7 +60,6 @@ export default function CreateUser() {
         throw new Error('Admin privileges required.');
       }
 
-      // Validate required fields
       if (formData.role === 'Student' && !formData.class) {
         throw new Error('Class is required for students.');
       }
@@ -72,6 +68,12 @@ export default function CreateUser() {
         throw new Error('Password must be at least 6 characters long.');
       }
 
+      // Check for a valid, real email address
+      if (!formData.email.includes('@')) {
+        throw new Error('Please enter a valid email address.');
+      }
+
+      // Supabase-specific: get role ID before creating the user
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
         .select('id')
@@ -84,6 +86,7 @@ export default function CreateUser() {
       
       const roleId = roleData.id;
 
+      // Create the user in Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -109,7 +112,7 @@ export default function CreateUser() {
 
       toast({
         title: "Success",
-        description: "User created successfully. A confirmation email has been sent.",
+        description: `User "${formData.email}" has been created.`,
         variant: "success",
       });
       
