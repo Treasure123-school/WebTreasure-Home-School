@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Users, 
-  GraduationCap, 
-  FileText, 
-  UserPlus, 
+import { 
+  Users, 
+  GraduationCap, 
+  FileText, 
+  UserPlus, 
   BookOpen,
   Megaphone,
   Camera,
@@ -18,14 +18,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter"; // Make sure this import is there
+import { Link } from "wouter";
 
 // Type definitions for your data
-interface UserData { 
-  id: string; 
-  email: string; 
-  full_name: string; 
-  role_name: string; 
+interface UserData { 
+  id: string; 
+  email: string; 
+  full_name: string; 
+  role_name: string; 
 }
 
 interface DashboardData {
@@ -41,14 +41,12 @@ export default function AdminDashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  // Only fetch data when user is fully authenticated
   const { data, isLoading: dataLoading, isError, error, refetch } = useQuery<DashboardData>({
     queryKey: ['admin-dashboard'],
     queryFn: async () => {
       console.log('Fetching admin dashboard data...');
-      
+       
       try {
-        // Use Promise.all to fetch all data concurrently
         const [
           usersResponse,
           announcementsResponse,
@@ -65,8 +63,7 @@ export default function AdminDashboard() {
           supabase.from('gallery').select('id, caption, created_at').order('created_at', { ascending: false })
         ]);
 
-        // Extract data from responses, handling both success and failure
-        const extractData = (response: PromiseSettledResult<any>) => 
+        const extractData = (response: PromiseSettledResult<any>) => 
           response.status === 'fulfilled' ? response.value.data || [] : [];
 
         const usersData = extractData(usersResponse);
@@ -77,9 +74,9 @@ export default function AdminDashboard() {
         const galleryData = extractData(galleryResponse);
 
         return {
-          users: usersData.map((u: any) => ({ 
-            ...u, 
-            role_name: u.roles?.role_name || 'Unknown' 
+          users: usersData.map((u: any) => ({ 
+            ...u, 
+            role_name: u.roles?.role_name || 'Unknown' 
           })),
           announcements: announcementsData,
           exams: examsData,
@@ -89,7 +86,6 @@ export default function AdminDashboard() {
         };
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Return empty data instead of throwing
         return {
           users: [],
           announcements: [],
@@ -105,7 +101,6 @@ export default function AdminDashboard() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Show loading if auth is still loading OR data is loading
   if (authLoading || dataLoading) {
     return (
       <Layout type="portal">
@@ -114,7 +109,6 @@ export default function AdminDashboard() {
     );
   }
 
-  // Use fallback empty arrays if data is undefined
   const safeData = data || {
     users: [],
     announcements: [],
@@ -124,10 +118,8 @@ export default function AdminDashboard() {
     gallery: []
   };
 
-  // Check if we have any data at all
   const hasData = Object.values(safeData).some(array => array.length > 0);
 
-  // If no data at all (all tables empty), show helpful message
   if (!hasData) {
     return (
       <Layout type="portal">
@@ -163,14 +155,13 @@ export default function AdminDashboard() {
     );
   }
 
-  // All data is available, now we can safely derive state and render
   const usersByRole = {
     admin: safeData.users.filter((u) => u.role_name === 'Admin'),
     teacher: safeData.users.filter((u) => u.role_name === 'Teacher'),
     student: safeData.users.filter((u) => u.role_name === 'Student'),
     parent: safeData.users.filter((u) => u.role_name === 'Parent'),
   };
-  
+   
   const pendingEnrollments = safeData.enrollments.filter((e) => e.status === 'pending');
   const recentMessages = safeData.messages.slice(0, 5);
 
@@ -361,7 +352,7 @@ export default function AdminDashboard() {
                             Parent: {enrollment.parent_name} • Age: {enrollment.child_age}
                           </div>
                         </div>
-                        <Badge 
+                        <Badge 
                           variant={enrollment.status === 'pending' ? 'secondary' : 'default'}
                           data-testid={`enrollment-status-${enrollment.id}`}
                         >
@@ -415,7 +406,7 @@ export default function AdminDashboard() {
               Manage Users
             </Button>
           </Link>
-          <Link href="/admin/create-user">
+          <Link href="/admin/users/create"> {/* Corrected path */}
             <Button variant="outline" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Create New User
