@@ -10,7 +10,6 @@ import Home from "@/pages/home";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import { queryClient } from "./lib/queryClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
-
 import AdminUsers from "@/pages/admin/Users";
 import CreateUser from "@/pages/admin/CreateUser";
 import AdminAnnouncements from "@/pages/admin/Announcements";
@@ -18,6 +17,9 @@ import AdminExams from "@/pages/admin/Exams";
 import AdminGallery from "@/pages/admin/Gallery";
 import AdminEnrollments from "@/pages/admin/Enrollments";
 import Unauthorized from "@/pages/unauthorized";
+import StudentDashboard from "@/pages/student/Dashboard";
+import TeacherDashboard from "@/pages/teacher/Dashboard";
+import ParentDashboard from "@/pages/parent/Dashboard";
 
 function AuthChecker({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -33,7 +35,7 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   if (isLoading) {
     return (
@@ -42,16 +44,28 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
       </div>
     );
   }
-
-  console.log("Protected Route Check: User Role -", user?.role_name, "Required Role -", requiredRole);
-
+  
   if (!isAuthenticated) {
     navigate('/login');
     return null;
   }
-
+  
   if (requiredRole && user?.role_name !== requiredRole) {
-    navigate('/unauthorized');
+    // Redirect logic for all other roles to their specific dashboards
+    switch (user?.role_name) {
+      case 'Teacher':
+        navigate('/teacher');
+        break;
+      case 'Student':
+        navigate('/student');
+        break;
+      case 'Parent':
+        navigate('/parent');
+        break;
+      default:
+        navigate('/unauthorized');
+        break;
+    }
     return null;
   }
   
@@ -69,26 +83,21 @@ function App() {
             <Route path="/login" component={Login} />
             <Route path="/unauthorized" component={Unauthorized} />
             
-            {/* Protected routes */}
             <Route path="/home">
               <ProtectedRoute>
                 <Home />
               </ProtectedRoute>
             </Route>
-            
-            <Route path="/admin">
+
+            {/* Admin routes - ordered from most specific to least specific */}
+            <Route path="/admin/users/create">
               <ProtectedRoute requiredRole="Admin">
-                <AdminDashboard />
+                <CreateUser />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/users">
               <ProtectedRoute requiredRole="Admin">
                 <AdminUsers />
-              </ProtectedRoute>
-            </Route>
-            <Route path="/admin/users/create">
-              <ProtectedRoute requiredRole="Admin">
-                <CreateUser />
               </ProtectedRoute>
             </Route>
             <Route path="/admin/announcements">
@@ -111,7 +120,30 @@ function App() {
                 <AdminEnrollments />
               </ProtectedRoute>
             </Route>
+            <Route path="/admin">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            </Route>
             
+            {/* Other protected routes for different roles */}
+            <Route path="/teacher">
+              <ProtectedRoute requiredRole="Teacher">
+                <TeacherDashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/student">
+              <ProtectedRoute requiredRole="Student">
+                <StudentDashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/parent">
+              <ProtectedRoute requiredRole="Parent">
+                <ParentDashboard />
+              </ProtectedRoute>
+            </Route>
+
+            {/* 404 Not Found route */}
             <Route component={NotFound} />
           </Switch>
         </AuthChecker>
