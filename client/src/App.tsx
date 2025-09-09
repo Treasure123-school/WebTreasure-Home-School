@@ -33,11 +33,9 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protected route component that checks for authentication and redirects if not
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const [, navigate] = useLocation();
-  const currentPath = window.location.pathname;
 
   if (isLoading) {
     return (
@@ -47,17 +45,25 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
     );
   }
   
-  // If not authenticated, redirect to login page
   if (!isAuthenticated) {
     navigate('/login');
     return null;
   }
   
-  // If authenticated but role does not match, redirect to unauthorized
   if (requiredRole && user?.role_name !== requiredRole) {
-    // Only redirect to unauthorized if user is not in a valid portal path
-    if (currentPath.includes('/admin') || currentPath.includes('/teacher') || currentPath.includes('/student') || currentPath.includes('/parent')) {
-      navigate('/unauthorized');
+    switch (user?.role_name) {
+      case 'Teacher':
+        navigate('/teacher');
+        break;
+      case 'Student':
+        navigate('/student');
+        break;
+      case 'Parent':
+        navigate('/parent');
+        break;
+      default:
+        navigate('/unauthorized');
+        break;
     }
     return null;
   }
@@ -72,16 +78,6 @@ function App() {
         <Toaster />
         <AuthChecker>
           <Switch>
-            <Route path="/" component={Landing} />
-            <Route path="/login" component={Login} />
-            <Route path="/unauthorized" component={Unauthorized} />
-            
-            <Route path="/home">
-              <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            </Route>
-
             {/* Admin routes - ordered from most specific to least specific */}
             <Route path="/admin/users/create">
               <ProtectedRoute requiredRole="Admin">
@@ -136,6 +132,15 @@ function App() {
               </ProtectedRoute>
             </Route>
 
+            {/* Public routes */}
+            <Route path="/" component={Landing} />
+            <Route path="/login" component={Login} />
+            <Route path="/unauthorized" component={Unauthorized} />
+            <Route path="/home">
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            </Route>
             <Route component={NotFound} />
           </Switch>
         </AuthChecker>
