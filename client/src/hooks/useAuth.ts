@@ -17,7 +17,7 @@ export function useAuth() {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session?.user) {
-          // Try to get user role, but don't fail if it errors
+          // Try to get user role
           try {
             const { data: userData } = await supabase
               .from('users')
@@ -48,9 +48,23 @@ export function useAuth() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         if (session?.user) {
-          setUser(session.user);
+          // Get user role on auth change
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('roles(role_name)')
+              .eq('id', session.user.id)
+              .single();
+
+            setUser({
+              ...session.user,
+              role_name: userData?.roles?.role_name
+            });
+          } catch (error) {
+            setUser(session.user);
+          }
         } else {
           setUser(null);
         }
