@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { useState } from "react";
+import { Link } from "wouter";
 import { GraduationCap, ChevronDown, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,17 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/useAuth";
 
 export default function PublicHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const [, navigate] = useLocation();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/");
-  };
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -88,33 +80,14 @@ export default function PublicHeader() {
               Contact
             </button>
             
-            {/* Portal Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  data-testid="portal-dropdown"
-                >
-                  Portal
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48">
-                {user ? (
-                  <DropdownMenuItem onClick={handleLogout} data-testid="logout-link">
-                    <span>Logout</span>
-                  </DropdownMenuItem>
-                ) : (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/login" data-testid="admin-portal">
-                        <span>Login to Portal</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Link href="/login">
+              <Button
+                className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                data-testid="portal-login-button"
+              >
+                Login to Portal
+              </Button>
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -149,26 +122,15 @@ export default function PublicHeader() {
               </button>
               <div className="pt-4 border-t">
                 <p className="text-sm text-textSecondary mb-2">Portal Access:</p>
-                {user ? (
+                <Link href="/login">
                   <Button
-                    onClick={handleLogout}
-                    className="block text-primary hover:underline"
                     variant="link"
-                    data-testid="mobile-logout"
+                    className="block text-primary hover:underline"
+                    data-testid="mobile-login"
                   >
-                    Logout
+                    Login to Portal
                   </Button>
-                ) : (
-                  <Link href="/login">
-                    <Button
-                      variant="link"
-                      className="block text-primary hover:underline"
-                      data-testid="mobile-login"
-                    >
-                      Login to Portal
-                    </Button>
-                  </Link>
-                )}
+                </Link>
               </div>
             </div>
           </div>
