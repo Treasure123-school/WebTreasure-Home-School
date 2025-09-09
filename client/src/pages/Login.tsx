@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'wouter';
+import { useState, useEffect } from 'react';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,13 +7,39 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, GraduationCap } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, isLoading } = useAuth();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const targetPath = getTargetPath(user.role_name);
+      setLocation(targetPath);
+    }
+  }, [isAuthenticated, user, setLocation]);
+
+  const getTargetPath = (roleName?: string) => {
+    switch (roleName?.toLowerCase()) {
+      case 'admin':
+        return '/admin';
+      case 'teacher':
+        return '/teacher';
+      case 'student':
+        return '/student';
+      case 'parent':
+        return '/parent';
+      default:
+        return '/home';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,16 +47,58 @@ export default function Login() {
     setError(null);
 
     try {
-      await login(email, password);
+      const { error: loginError } = await login(email, password);
+      if (loginError) {
+        throw new Error(loginError.message || 'Login failed');
+      }
+      
+      toast({
+        title: "Success",
+        description: "Logged in successfully! Redirecting...",
+        variant: "default",
+      });
+      
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials and try again.');
+      toast({
+        title: "Error",
+        description: err.message || "Login failed",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Checking authentication...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show redirecting state if already authenticated
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardContent className="pt-8 pb-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting to dashboard...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    // Replaced the blue gradient with a simple, neutral gray background
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center pb-2 pt-8">
@@ -38,8 +106,6 @@ export default function Login() {
           <div className="flex justify-center mb-4">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-lg">
               <GraduationCap className="h-10 w-10 text-white" />
-              {/* Replace with your actual logo: */}
-              {/* <img src="/school-logo.png" alt="School Logo" className="w-12 h-12" /> */}
             </div>
           </div>
           
@@ -136,9 +202,6 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
-
-      {/* This decorative element has been completely removed as requested */}
-      {/* <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-blue-100/50 to-transparent pointer-events-none"></div> */}
     </div>
   );
 }
