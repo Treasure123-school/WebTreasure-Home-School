@@ -14,26 +14,26 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Megaphone, Plus, Edit2, Trash2, RefreshCw } from "lucide-react";
 import { z } from "zod";
@@ -41,278 +41,348 @@ import { z } from "zod";
 const announcementFormSchema = insertAnnouncementSchema;
 
 export default function AdminAnnouncements() {
-  const { user, isLoading } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
+  const { user, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+    
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
 
-  // FIX: Corrected role check to use user.role_name
-  useEffect(() => {
-    if (!isLoading && (!user || user.role_name !== 'Admin')) {
-      toast({
-        title: "Unauthorized",
-        description: "You need admin privileges to access this page.",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
-      return;
-    }
-  }, [user, isLoading, toast]);
+  // ✅ FIX: Corrected role check to use user.role_name
+  useEffect(() => {
+    if (!authLoading && (!user || user.role_name !== 'Admin')) {
+      toast({
+        title: "Unauthorized",
+        description: "You need admin privileges to access this page.",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+      return;
+    }
+  }, [user, authLoading, toast]);
 
-  const { data: announcements = [], isLoading: announcementsLoading, refetch } = useQuery({
-    queryKey: ['announcements'],
-    // FIX: Use apiRequest for fetching announcements
-    queryFn: async () => await apiRequest('GET', '/api/announcements'),
-    enabled: !!user && user.role_name === 'Admin',
-    retry: 1,
-  });
+  // ✅ FIX: Use apiRequest for fetching announcements
+  const { data: announcements = [], isLoading: announcementsLoading, refetch } = useQuery({
+    queryKey: ['announcements'],
+    queryFn: async () => await apiRequest('GET', '/api/announcements'),
+    enabled: !!user && user.role_name === 'Admin',
+    retry: 1,
+  });
 
-  const form = useForm<z.infer<typeof announcementFormSchema>>({
-    resolver: zodResolver(announcementFormSchema),
-    defaultValues: {
-      title: '',
-      body: '',
-      audience: 'All', // FIX: Corrected default to 'All' to match schema
-      createdBy: user?.id || '',
-    },
-  });
+  const form = useForm<z.infer<typeof announcementFormSchema>>({
+    resolver: zodResolver(announcementFormSchema),
+    defaultValues: {
+      title: '',
+      body: '',
+      audience: 'All',
+      createdBy: user?.id || '',
+    },
+  });
 
-  // FIX: Use apiRequest for mutations
-  const createMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof announcementFormSchema>) => {
-      await apiRequest('POST', '/api/announcements', data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Announcement Created",
-        description: "Your announcement has been created successfully.",
-      });
-      form.reset();
-      setIsCreateOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to create announcement.",
-        variant: "destructive",
-      });
-    },
-  });
+  // ✅ FIX: Use apiRequest for mutations
+  const createMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof announcementFormSchema>) => {
+      await apiRequest('POST', '/api/announcements', data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Announcement Created",
+        description: "Your announcement has been created successfully.",
+      });
+      form.reset();
+      setIsCreateOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create announcement.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string, data: Partial<z.infer<typeof announcementFormSchema>> }) => {
-      await apiRequest('PUT', `/api/announcements/${id}`, data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Announcement Updated",
-        description: "Announcement has been updated successfully.",
-      });
-      form.reset();
-      setEditingAnnouncement(null);
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update announcement.",
-        variant: "destructive",
-      });
-    },
-  });
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: Partial<z.infer<typeof announcementFormSchema>> }) => {
+      await apiRequest('PUT', `/api/announcements/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Announcement Updated",
+        description: "Announcement has been updated successfully.",
+      });
+      form.reset();
+      setEditingAnnouncement(null);
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update announcement.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest('DELETE', `/api/announcements/${id}`);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Announcement Deleted",
-        description: "Announcement has been deleted successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['announcements'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete announcement.",
-        variant: "destructive",
-      });
-    },
-  });
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest('DELETE', `/api/announcements/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Announcement Deleted",
+        description: "Announcement has been deleted successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete announcement.",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const onSubmit = (data: z.infer<typeof announcementFormSchema>) => {
-    if (editingAnnouncement) {
-      updateMutation.mutate({ id: editingAnnouncement.id, data });
-    } else {
-      createMutation.mutate({ ...data, createdBy: user?.id || '' });
-    }
-  };
+  const onSubmit = (data: z.infer<typeof announcementFormSchema>) => {
+    if (editingAnnouncement) {
+      updateMutation.mutate({ id: editingAnnouncement.id, data });
+    } else {
+      createMutation.mutate({ ...data, createdBy: user?.id || '' });
+    }
+  };
 
-  const handleEdit = (announcement: any) => {
-    setEditingAnnouncement(announcement);
-    form.reset({
-      title: announcement.title,
-      body: announcement.body,
-      audience: announcement.audience,
-      createdBy: announcement.createdBy,
-    });
-  };
+  const handleEdit = (announcement: any) => {
+    setEditingAnnouncement(announcement);
+    form.reset({
+      title: announcement.title,
+      body: announcement.body,
+      audience: announcement.audience,
+      createdBy: announcement.createdBy,
+    });
+  };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this announcement?')) {
-      deleteMutation.mutate(id);
-    }
-  };
+  const handleDelete = (id: string) => {
+    if (confirm('Are you sure you want to delete this announcement?')) {
+      deleteMutation.mutate(id);
+    }
+  };
 
-  const getAudienceBadgeColor = (audience: string) => {
-    switch (audience.toLowerCase()) {
-      case 'all':
-        return 'bg-primary text-white';
-      case 'students':
-        return 'bg-secondary text-white';
-      case 'teachers':
-        return 'bg-accent text-white';
-      case 'parents':
-        return 'bg-purple-500 text-white';
-      default:
-        return 'bg-gray-500 text-white';
-    }
-  };
+  const getAudienceBadgeColor = (audience: string) => {
+    switch (audience.toLowerCase()) {
+      case 'all':
+        return 'bg-primary text-white';
+      case 'student':
+        return 'bg-secondary text-white';
+      case 'teacher':
+        return 'bg-accent text-white';
+      case 'parent':
+        return 'bg-purple-500 text-white';
+      case 'admin':
+        return 'bg-destructive text-white';
+      default:
+        return 'bg-gray-500 text-white';
+    }
+  };
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
-  return (
-    <Layout type="portal">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="admin-announcements">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-textPrimary mb-2">Announcements</h1>
-            <p className="text-textSecondary">Manage school announcements and news</p>
-          </div>
+  if (!user || user.role_name !== 'Admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-destructive">Access Denied</h2>
+          <p className="text-textSecondary">You need admin privileges to access this page.</p>
+        </div>
+      </div>
+    );
+  }
 
-          <Dialog open={isCreateOpen || !!editingAnnouncement} onOpenChange={(open) => {
-            setIsCreateOpen(open);
-            if (!open) {
-              setEditingAnnouncement(null);
-              form.reset();
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setIsCreateOpen(true)} data-testid="create-announcement">
-                <Plus className="mr-2 h-4 w-4" />
-                New Announcement
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="announcement-form">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Announcement title" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+  return (
+    <Layout type="portal">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="admin-announcements">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-textPrimary mb-2">Announcements</h1>
+            <p className="text-textSecondary">Manage school announcements and news</p>
+          </div>
 
-                  <FormField
-                    control={form.control}
-                    name="audience"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Audience</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select audience" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="All">All Users</SelectItem>
-                            <SelectItem value="Student">Students</SelectItem>
-                            <SelectItem value="Teacher">Teachers</SelectItem>
-                            <SelectItem value="Parent">Parents</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+          <Dialog open={isCreateOpen || !!editingAnnouncement} onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) {
+              setEditingAnnouncement(null);
+              form.reset();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setIsCreateOpen(true)} data-testid="create-announcement">
+                <Plus className="mr-2 h-4 w-4" />
+                New Announcement
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingAnnouncement ? 'Edit Announcement' : 'Create New Announcement'}
+                </DialogTitle>
+              </DialogHeader>
+                
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6" data-testid="announcement-form">
+                  <FormField
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Announcement title" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <FormField
-                    control={form.control}
-                    name="body"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Content</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            rows={6}
-                            placeholder="Announcement content..." 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <FormField
+                    control={form.control}
+                    name="audience"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Audience</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select audience" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="All">All Users</SelectItem>
+                            <SelectItem value="Student">Students</SelectItem>
+                            <SelectItem value="Teacher">Teachers</SelectItem>
+                            <SelectItem value="Parent">Parents</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => {
-                        setIsCreateOpen(false);
-                        setEditingAnnouncement(null);
-                        form.reset();
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                    >
-                      {createMutation.isPending || updateMutation.isPending 
-                        ? 'Saving...' 
-                        : editingAnnouncement ? 'Update' : 'Create'
-                      }
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-        </div>
+                  <FormField
+                    control={form.control}
+                    name="body"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Content</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            rows={6}
+                            placeholder="Announcement content..." 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-        {/* Announcements List */}
-        {announcementsLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        ) : announcements.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
+                  <div className="flex justify-end space-x-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsCreateOpen(false);
+                        setEditingAnnouncement(null);
+                        form.reset();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                    >
+                      {createMutation.isPending || updateMutation.isPending 
+                        ? 'Saving...' 
+                        : editingAnnouncement ? 'Update' : 'Create'
+                      }
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Announcements List */}
+        {announcementsLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : announcements.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <Megaphone className="h-12 w-12 text-textSecondary mx-auto mb-4" />
+              <p className="text-textSecondary mb-4">No announcements created yet</p>
+              <Button onClick={() => setIsCreateOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Announcement
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6">
+            {announcements.map((announcement: any) => (
+              <Card key={announcement.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <CardTitle className="text-lg">{announcement.title}</CardTitle>
+                      <Badge 
+                        className={getAudienceBadgeColor(announcement.audience)}
+                      >
+                        {announcement.audience}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(announcement)}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(announcement.id)}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-textSecondary mb-4">
+                    {announcement.body}
+                  </p>
+                  <div className="text-xs text-textSecondary">
+                    Created on {new Date(announcement.created_at).toLocaleDateString()}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+}
