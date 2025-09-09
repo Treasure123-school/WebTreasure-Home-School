@@ -18,21 +18,6 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Redirect after successful login
-  useEffect(() => {
-    const handleRedirect = async () => {
-      if (isAuthenticated && user) {
-        // Wait for the role to be fetched before redirecting
-        if (user.role_name) {
-          const targetPath = getTargetPath(user.role_name);
-          console.log(`User logged in as ${user.role_name}, redirecting to ${targetPath}`);
-          setLocation(targetPath);
-        }
-      }
-    };
-    handleRedirect();
-  }, [isAuthenticated, user, setLocation]);
-
   const getTargetPath = (roleName?: string) => {
     switch (roleName?.toLowerCase()) {
       case 'admin':
@@ -47,6 +32,13 @@ export default function Login() {
         return '/home';
     }
   };
+
+  useEffect(() => {
+    if (isAuthenticated && user && !isLoading) {
+      const targetPath = getTargetPath(user.role_name);
+      setLocation(targetPath);
+    }
+  }, [isAuthenticated, user, isLoading, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +80,11 @@ export default function Login() {
         </Card>
       </div>
     );
+  }
+
+  // If a user is authenticated, we should not render the login form
+  if (isAuthenticated) {
+    return null; // The useEffect will handle the redirection
   }
 
   return (
