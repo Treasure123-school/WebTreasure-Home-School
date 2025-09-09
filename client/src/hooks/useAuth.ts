@@ -3,7 +3,7 @@ import { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 interface AppUser extends User {
-  role_name?: string;
+  role_name?: string | null;
 }
 
 export function useAuth() {
@@ -14,21 +14,27 @@ export function useAuth() {
     const fetchUserAndRole = async (sessionUser: User | null) => {
       if (sessionUser) {
         try {
-          const { data: userData } = await supabase
+          const { data: userData, error } = await supabase
             .from('users')
             .select('roles(role_name)')
             .eq('id', sessionUser.id)
             .single();
 
+          if (error) {
+            throw error;
+          }
+          
           setUser({
             ...sessionUser,
-            role_name: userData?.roles?.role_name
+            role_name: userData?.roles?.role_name || null // Ensure a value is always set, even if null
           });
         } catch (error) {
           console.error("Failed to fetch user role:", error);
-          setUser(sessionUser); // Still set the user even if role fetch fails
+          // Fallback: If role fetch fails, set user with a null role
+          setUser({ ...sessionUser, role_name: null });
         }
       } else {
+        // If there is no session user, set user to null
         setUser(null);
       }
       setIsLoading(false); // This is the crucial line: set loading to false after processing
