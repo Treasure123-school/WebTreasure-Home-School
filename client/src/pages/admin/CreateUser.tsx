@@ -1,6 +1,7 @@
+// client/src/pages/admin/CreateUser.tsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabaseClient';
+import { apiRequest } from '@/lib/queryClient'; // Import the new helper
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,12 +23,16 @@ const ROLE_OPTIONS = [
   'Admin', 'Teacher', 'Student', 'Parent'
 ];
 
-export default function CreateUser() {
+interface CreateUserProps {
+    onSuccess: () => void;
+}
+
+export default function CreateUser({ onSuccess }: CreateUserProps) {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  
+    
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -63,7 +68,7 @@ export default function CreateUser() {
       if (formData.role === 'Student' && !formData.class) {
         throw new Error('Class is required for students.');
       }
-      
+        
       if (formData.password.length < 6) {
         throw new Error('Password must be at least 6 characters long.');
       }
@@ -73,49 +78,25 @@ export default function CreateUser() {
         throw new Error('Please enter a valid email address.');
       }
 
-      // Supabase-specific: get role ID before creating the user
-      const { data: roleData, error: roleError } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('role_name', formData.role)
-        .single();
-      
-      if (roleError || !roleData) {
-        throw new Error('Could not find role ID for ' + formData.role);
-      }
-      
-      const roleId = roleData.id;
-
-      // Create the user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // ✅ FIX: Send the create user request to your backend API
+      // The backend will handle the privileged user creation process.
+      await apiRequest('POST', '/api/admin/users', {
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-            role_id: roleId,
-            class: formData.class || null,
-            phone: formData.phone || null,
-            gender: formData.gender || null,
-            dob: formData.dob || null
-          }
-        }
+        full_name: formData.fullName,
+        role: formData.role,
+        class: formData.class || null,
+        phone: formData.phone || null,
+        gender: formData.gender || null,
+        dob: formData.dob || null
       });
-      
-      if (authError) {
-        throw new Error(authError.message);
-      }
-
-      if (!authData.user) {
-        throw new Error('User was not created in the auth system.');
-      }
 
       toast({
         title: "Success",
         description: `User "${formData.email}" has been created.`,
         variant: "success",
       });
-      
+        
       setFormData({ 
         email: '', 
         password: '', 
@@ -126,9 +107,12 @@ export default function CreateUser() {
         gender: '',
         dob: ''
       });
-      
+        
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
       
+      onSuccess();
+
     } catch (error: any) {
       console.error('Error creating user:', error);
       toast({
@@ -161,203 +145,201 @@ export default function CreateUser() {
   }
 
   return (
-    <Layout type="portal">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex items-center space-x-4">
-          <Link href="/admin/users">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-textPrimary">Create New User</h1>
-            <p className="text-textSecondary">Add new members to the school portal system.</p>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-6 flex items-center space-x-4">
+        <Link href="/admin/users">
+          <Button variant="outline" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-textPrimary">Create New User</h1>
+          <p className="text-textSecondary">Add new members to the school portal system.</p>
         </div>
+      </div>
 
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader>
-            <CardTitle>User Information</CardTitle>
-            <CardDescription>
-              Complete all required fields to create a new user account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Basic Information</h3>
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle>User Information</CardTitle>
+          <CardDescription>
+            Complete all required fields to create a new user account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basic Information</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name *</Label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      required
-                      placeholder="John Doe"
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
-                      placeholder="user@example.com"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id="password"
-                      type="text"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                      placeholder="Minimum 6 characters"
-                      minLength={6}
-                      className="flex-1"
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={generateRandomPassword}
-                      className="whitespace-nowrap"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Generate
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">The user can change this password later.</p>
+                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    required
+                    placeholder="John Doe"
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    placeholder="user@example.com"
+                    className="w-full"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-4 pt-6 border-t">
-                <h3 className="text-lg font-semibold">Account Details</h3>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password *</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="password"
+                    type="text"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    placeholder="Minimum 6 characters"
+                    minLength={6}
+                    className="flex-1"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={generateRandomPassword}
+                    className="whitespace-nowrap"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Generate
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">The user can change this password later.</p>
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4 pt-6 border-t">
+              <h3 className="text-lg font-semibold">Account Details</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="role">User Role *</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value) => setFormData({ ...formData, role: value, class: value !== 'Student' ? '' : formData.class })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.role === 'Student' && (
                   <div className="space-y-2">
-                    <Label htmlFor="role">User Role *</Label>
+                    <Label htmlFor="class">Class *</Label>
                     <Select
-                      value={formData.role}
-                      onValueChange={(value) => setFormData({ ...formData, role: value, class: value !== 'Student' ? '' : formData.class })}
+                      value={formData.class}
+                      onValueChange={(value) => setFormData({ ...formData, class: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder="Select a class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ROLE_OPTIONS.map((role) => (
-                          <SelectItem key={role} value={role}>
-                            {role}
+                        {CLASS_OPTIONS.map((className) => (
+                          <SelectItem key={className} value={className}>
+                            {className}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
+                )}
+              </div>
+            </div>
 
-                  {formData.role === 'Student' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="class">Class *</Label>
-                      <Select
-                        value={formData.class}
-                        onValueChange={(value) => setFormData({ ...formData, class: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a class" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CLASS_OPTIONS.map((className) => (
-                            <SelectItem key={className} value={className}>
-                              {className}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+            <div className="space-y-4 pt-6 border-t">
+              <h3 className="text-lg font-semibold">Optional Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="e.g., +2348012345678"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value: 'Male' | 'Female') => setFormData({ ...formData, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 col-span-1 md:col-span-2">
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  />
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-4 pt-6 border-t">
-                <h3 className="text-lg font-semibold">Optional Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="e.g., +2348012345678"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Select
-                      value={formData.gender}
-                      onValueChange={(value: 'Male' | 'Female') => setFormData({ ...formData, gender: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2 col-span-1 md:col-span-2">
-                    <Label htmlFor="dob">Date of Birth</Label>
-                    <Input
-                      id="dob"
-                      type="date"
-                      value={formData.dob}
-                      onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex space-x-4 pt-4 border-t">
+            <div className="flex space-x-4 pt-4 border-t">
+              <Button 
+                type="submit" 
+                disabled={loading} 
+                className="flex-1"
+                size="lg"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                    Creating User...
+                  </>
+                ) : (
+                  'Create User'
+                )}
+              </Button>
+              <Link href="/admin/users">
                 <Button 
-                  type="submit" 
-                  disabled={loading} 
+                  type="button" 
+                  variant="outline" 
                   className="flex-1"
                   size="lg"
                 >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                      Creating User...
-                    </>
-                  ) : (
-                    'Create User'
-                  )}
+                  Cancel
                 </Button>
-                <Link href="/admin/users">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="flex-1"
-                    size="lg"
-                  >
-                    Cancel
-                  </Button>
-                </Link>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    </Layout>
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
