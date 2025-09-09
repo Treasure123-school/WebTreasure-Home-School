@@ -1,171 +1,40 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import Login from "@/pages/Login";
 import Home from "@/pages/home";
 import AdminDashboard from "@/pages/admin/Dashboard";
-import TeacherDashboard from "@/pages/teacher/Dashboard";
-import StudentDashboard from "@/pages/student/Dashboard";
-import ParentDashboard from "@/pages/parent/Dashboard";
-import Login from "@/pages/Login";
-import Unauthorized from "@/pages/unauthorized";
-import AdminUsers from "@/pages/admin/Users";
-import AdminAnnouncements from "@/pages/admin/Announcements";
-import AdminGallery from "@/pages/admin/Gallery";
-import AdminExams from "@/pages/admin/Exams";
-import AdminEnrollments from "@/pages/admin/Enrollments";
-import CreateUser from "@/pages/admin/CreateUser";
 import { queryClient } from "./lib/queryClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
-function ProtectedRoute({ children, requiredRole }: { 
-  children: React.ReactNode;
-  requiredRole?: string;
-}) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <LoadingSpinner message="Checking authentication..." />;
-  }
-
-  if (!user) {
-    return <Redirect to="/login" />;
-  }
-
-  if (requiredRole && user.role_name !== requiredRole) {
-    return <Unauthorized />;
-  }
-
-  return <>{children}</>;
-}
-
-function PublicRoute({ children }: { 
-  children: React.ReactNode;
-}) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return <LoadingSpinner message="Loading..." />;
-  }
-
-  // Don't redirect from landing page even if authenticated
-  if (isAuthenticated && window.location.pathname === "/") {
-    return <>{children}</>;
-  }
-
-  if (isAuthenticated) {
-    return <Redirect to="/home" />;
-  }
-
-  return <>{children}</>;
-}
-
-function AppRouter() {
+// Simple component to show while checking auth
+function AuthChecker({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
-
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner message="Loading application..." />
+        <LoadingSpinner message="Loading..." />
       </div>
     );
   }
+  
+  return <>{children}</>;
+}
 
-  return (
-    <Switch>
-      {/* Public Routes - Landing page should always be accessible */}
-      <Route path="/">
-        <PublicRoute>
-          <Landing />
-        </PublicRoute>
-      </Route>
-
-      <Route path="/login">
-        <PublicRoute>
-          <Login />
-        </PublicRoute>
-      </Route>
-
-      <Route path="/unauthorized">
-        <Unauthorized />
-      </Route>
-
-      {/* Protected Routes */}
-      <Route path="/home">
-        <ProtectedRoute>
-          <Home />
-        </ProtectedRoute>
-      </Route>
-
-      {/* Admin Routes - Specific routes first */}
-      <Route path="/admin/create-user">
-        <ProtectedRoute requiredRole="Admin">
-          <CreateUser />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/users">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminUsers />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/announcements">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminAnnouncements />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/gallery">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminGallery />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/exams">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminExams />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin/enrollments">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminEnrollments />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/admin">
-        <ProtectedRoute requiredRole="Admin">
-          <AdminDashboard />
-        </ProtectedRoute>
-      </Route>
-
-      {/* Other role routes */}
-      <Route path="/teacher">
-        <ProtectedRoute requiredRole="Teacher">
-          <TeacherDashboard />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/student">
-        <ProtectedRoute requiredRole="Student">
-          <StudentDashboard />
-        </ProtectedRoute>
-      </Route>
-
-      <Route path="/parent">
-        <ProtectedRoute requiredRole="Parent">
-          <ParentDashboard />
-        </ProtectedRoute>
-      </Route>
-
-      {/* 404 Route */}
-      <Route component={NotFound} />
-    </Switch>
-  );
+// Simple protected route
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+  
+  return <>{children}</>;
 }
 
 function App() {
@@ -173,7 +42,29 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AppRouter />
+        <AuthChecker>
+          <Switch>
+            {/* Public routes */}
+            <Route path="/" component={Landing} />
+            <Route path="/login" component={Login} />
+            
+            {/* Protected routes */}
+            <Route path="/home">
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            </Route>
+            
+            <Route path="/admin">
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            </Route>
+            
+            {/* 404 */}
+            <Route component={NotFound} />
+          </Switch>
+        </AuthChecker>
       </TooltipProvider>
     </QueryClientProvider>
   );
