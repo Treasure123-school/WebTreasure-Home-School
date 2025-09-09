@@ -11,7 +11,6 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // A ref to prevent re-fetching on every render
   const initialLoadRef = useRef(false);
 
   useEffect(() => {
@@ -55,7 +54,6 @@ export function useAuth() {
 
     getInitialSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
