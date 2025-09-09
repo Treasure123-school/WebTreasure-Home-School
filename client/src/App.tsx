@@ -38,7 +38,7 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
 // Protected route component that checks for authentication and redirects if not
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   if (isLoading) {
     return (
@@ -47,6 +47,9 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
       </div>
     );
   }
+
+  // Debugging line
+  console.log("Protected Route Check:", { isAuthenticated, userRole: user?.role_name, requiredRole });
 
   if (!isAuthenticated) {
     navigate('/login');
