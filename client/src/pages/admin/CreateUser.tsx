@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, navigate } from "wouter";
+import { Link, useLocation } from "wouter"; // Corrected import
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 
@@ -28,6 +28,8 @@ export default function CreateUser() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation(); // Correct way to get the navigate function
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -50,7 +52,7 @@ export default function CreateUser() {
       });
       navigate('/unauthorized');
     }
-  }, [user, authLoading, toast]);
+  }, [user, authLoading, toast, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +72,6 @@ export default function CreateUser() {
         throw new Error('Password must be at least 6 characters long.');
       }
 
-      // 1. Get the role_id from the database
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
         .select('id')
@@ -83,7 +84,6 @@ export default function CreateUser() {
       
       const roleId = roleData.id;
 
-      // 2. Create the user in Supabase Auth system
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -113,7 +113,6 @@ export default function CreateUser() {
         variant: "success",
       });
       
-      // Reset form on success
       setFormData({ 
         email: '', 
         password: '', 
@@ -125,7 +124,6 @@ export default function CreateUser() {
         dob: ''
       });
       
-      // Invalidate the cache to refresh the users list in Admin Dashboard
       queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
       
     } catch (error: any) {
@@ -149,9 +147,6 @@ export default function CreateUser() {
     setFormData({...formData, password});
   };
 
-  // Rest of the JSX remains the same, but let's make it cleaner
-  
-  // The Unauthorized page logic is already handled by the useEffect and the initial render check
   if (authLoading || !user || user.role_name !== 'Admin') {
     return (
       <Layout type="portal">
@@ -186,7 +181,6 @@ export default function CreateUser() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Info Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Basic Information</h3>
                 
@@ -222,7 +216,7 @@ export default function CreateUser() {
                   <div className="flex space-x-2">
                     <Input
                       id="password"
-                      type="text" // Changed to text to show generated password
+                      type="text"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       required
@@ -244,7 +238,6 @@ export default function CreateUser() {
                 </div>
               </div>
 
-              {/* Account Details Section */}
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-lg font-semibold">Account Details</h3>
 
@@ -268,7 +261,6 @@ export default function CreateUser() {
                     </Select>
                   </div>
 
-                  {/* Class field is only visible for students */}
                   {formData.role === 'Student' && (
                     <div className="space-y-2">
                       <Label htmlFor="class">Class *</Label>
@@ -292,7 +284,6 @@ export default function CreateUser() {
                 </div>
               </div>
 
-              {/* Optional Information Section */}
               <div className="space-y-4 pt-6 border-t">
                 <h3 className="text-lg font-semibold">Optional Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -333,7 +324,6 @@ export default function CreateUser() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex space-x-4 pt-4 border-t">
                 <Button 
                   type="submit" 
