@@ -18,12 +18,19 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Redirect if already authenticated
+  // Redirect after successful login
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const targetPath = getTargetPath(user.role_name);
-      setLocation(targetPath);
-    }
+    const handleRedirect = async () => {
+      if (isAuthenticated && user) {
+        // Wait for the role to be fetched before redirecting
+        if (user.role_name) {
+          const targetPath = getTargetPath(user.role_name);
+          console.log(`User logged in as ${user.role_name}, redirecting to ${targetPath}`);
+          setLocation(targetPath);
+        }
+      }
+    };
+    handleRedirect();
   }, [isAuthenticated, user, setLocation]);
 
   const getTargetPath = (roleName?: string) => {
@@ -70,7 +77,6 @@ export default function Login() {
     }
   };
 
-  // Show loading state while checking authentication
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -84,31 +90,15 @@ export default function Login() {
     );
   }
 
-  // Show redirecting state if already authenticated
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardContent className="pt-8 pb-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Redirecting to dashboard...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="space-y-1 text-center pb-2 pt-8">
-          {/* School Logo Section */}
           <div className="flex justify-center mb-4">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-lg">
               <GraduationCap className="h-10 w-10 text-white" />
             </div>
           </div>
-          
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
             Treasure Home School
           </CardTitle>
@@ -116,7 +106,6 @@ export default function Login() {
             Enter your credentials to access the portal
           </CardDescription>
         </CardHeader>
-        
         <CardContent className="pt-4">
           {error && (
             <Alert variant="destructive" className="mb-6 border-l-4 border-l-red-500">
@@ -141,7 +130,6 @@ export default function Login() {
                 className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
-
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password" className="text-gray-700 font-medium">
@@ -165,7 +153,6 @@ export default function Login() {
                 className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
               />
             </div>
-
             <Button
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
@@ -182,16 +169,11 @@ export default function Login() {
               )}
             </Button>
           </form>
-
-          {/* Security Notice */}
           <div className="mt-8 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
             <p className="text-xs text-blue-700 text-center">
-              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal.
-              Never share your credentials with anyone.
+              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal. Never share your credentials with anyone.
             </p>
           </div>
-
-          {/* Back to Home link */}
           <div className="mt-6 text-center">
             <Link href="/">
               <Button variant="ghost" className="text-gray-600 hover:text-gray-800 transition-colors duration-200">
