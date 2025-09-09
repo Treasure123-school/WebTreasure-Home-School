@@ -1,186 +1,154 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'wouter';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, GraduationCap } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
+import { Switch, Route, useLocation } from "wouter";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useAuth } from "@/hooks/useAuth";
+import NotFound from "@/pages/not-found";
+import Landing from "@/pages/landing";
+import Login from "@/pages/Login";
+import Home from "@/pages/home";
+import AdminDashboard from "@/pages/admin/Dashboard";
+import { queryClient } from "./lib/queryClient";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import AdminUsers from "@/pages/admin/Users";
+import CreateUser from "@/pages/admin/CreateUser";
+import AdminAnnouncements from "@/pages/admin/Announcements";
+import AdminExams from "@/pages/admin/Exams";
+import AdminGallery from "@/pages/admin/Gallery";
+import AdminEnrollments from "@/pages/admin/Enrollments";
+import Unauthorized from "@/pages/unauthorized";
+import StudentDashboard from "@/pages/student/Dashboard";
+import TeacherDashboard from "@/pages/teacher/Dashboard";
+import ParentDashboard from "@/pages/parent/Dashboard";
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const { login, user, isAuthenticated, isLoading } = useAuth();
-  const { toast } = useToast();
-  const [, setLocation] = useLocation();
-
-  const getTargetPath = (roleName?: string) => {
-    switch (roleName?.toLowerCase()) {
-      case 'admin':
-        return '/admin';
-      case 'teacher':
-        return '/teacher';
-      case 'student':
-        return '/student';
-      case 'parent':
-        return '/parent';
-      default:
-        return '/home';
-    }
-  };
-
-  useEffect(() => {
-    if (isAuthenticated && user && !isLoading) {
-      const targetPath = getTargetPath(user.role_name);
-      setLocation(targetPath);
-    }
-  }, [isAuthenticated, user, isLoading, setLocation]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { error: loginError } = await login(email, password);
-      if (loginError) {
-        throw new Error(loginError.message || 'Login failed');
-      }
-      
-      toast({
-        title: "Success",
-        description: "Logged in successfully! Redirecting...",
-        variant: "default",
-      });
-      
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials and try again.');
-      toast({
-        title: "Error",
-        description: err.message || "Login failed",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardContent className="pt-8 pb-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Checking authentication...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // If a user is authenticated, we should not render the login form
-  if (isAuthenticated) {
-    return null; // The useEffect will handle the redirection
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center pb-2 pt-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-lg">
-              <GraduationCap className="h-10 w-10 text-white" />
-            </div>
-          </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
-            Treasure Home School
-          </CardTitle>
-          <CardDescription className="text-gray-600 text-base">
-            Enter your credentials to access the portal
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {error && (
-            <Alert variant="destructive" className="mb-6 border-l-4 border-l-red-500">
-              <AlertDescription className="font-medium">{error}</AlertDescription>
-            </Alert>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="email" className="text-gray-700 font-medium">
-                Email Address
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                autoComplete="email"
-                className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="password" className="text-gray-700 font-medium">
-                  Password
-                </Label>
-                <Link href="/forgot-password">
-                  <Button variant="link" className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm">
-                    Forgot password?
-                  </Button>
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                autoComplete="current-password"
-                className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
-              disabled={loading}
-              size="lg"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign In to Portal'
-              )}
-            </Button>
-          </form>
-          <div className="mt-8 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-            <p className="text-xs text-blue-700 text-center">
-              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal. Never share your credentials with anyone.
-            </p>
-          </div>
-          <div className="mt-6 text-center">
-            <Link href="/">
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-800 transition-colors duration-200">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Return to Homepage
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+function AuthChecker({ children }: { children: React.ReactNode }) {
+  const { isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Loading..." />
+      </div>
+    );
+  }
+  return <>{children}</>;
 }
+
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner message="Checking authentication..." />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    navigate('/login');
+    return null;
+  }
+  
+  if (requiredRole && user?.role_name !== requiredRole) {
+    // Redirect to a role-specific dashboard if the user has a different role
+    switch (user?.role_name) {
+      case 'Teacher':
+        navigate('/teacher');
+        break;
+      case 'Student':
+        navigate('/student');
+        break;
+      case 'Parent':
+        navigate('/parent');
+        break;
+      default:
+        navigate('/unauthorized');
+        break;
+    }
+    return null;
+  }
+  
+  return <>{children}</>;
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <AuthChecker>
+          <Switch>
+            <Route path="/" component={Landing} />
+            <Route path="/login" component={Login} />
+            <Route path="/unauthorized" component={Unauthorized} />
+            
+            <Route path="/home">
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            </Route>
+
+            {/* Admin routes - ordered from most specific to least specific */}
+            <Route path="/admin/users/create">
+              <ProtectedRoute requiredRole="Admin">
+                <CreateUser />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/users">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminUsers />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/announcements">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminAnnouncements />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/exams">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminExams />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/gallery">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminGallery />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin/enrollments">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminEnrollments />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/admin">
+              <ProtectedRoute requiredRole="Admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            </Route>
+            
+            {/* Other protected routes for different roles */}
+            <Route path="/teacher">
+              <ProtectedRoute requiredRole="Teacher">
+                <TeacherDashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/student">
+              <ProtectedRoute requiredRole="Student">
+                <StudentDashboard />
+              </ProtectedRoute>
+            </Route>
+            <Route path="/parent">
+              <ProtectedRoute requiredRole="Parent">
+                <ParentDashboard />
+              </ProtectedRoute>
+            </Route>
+
+            <Route component={NotFound} />
+          </Switch>
+        </AuthChecker>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
