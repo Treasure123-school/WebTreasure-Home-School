@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { User } from "@supabase/supabase-js";
+import { useState, useEffect, useRef } from "react";
+import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
 interface AppUser extends User {
@@ -8,9 +8,16 @@ interface AppUser extends User {
 
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // A ref to prevent re-fetching on every render
+  const initialLoadRef = useRef(false);
+
   useEffect(() => {
+    if (initialLoadRef.current) return;
+    initialLoadRef.current = true;
+    
     const fetchUserAndRole = async (sessionUser: User | null) => {
       console.log('Fetching user and role...');
       if (sessionUser) {
@@ -47,15 +54,18 @@ export function useAuth() {
 
     const getInitialSession = async () => {
       console.log('Getting initial session...');
-      const { data: { session } } = await supabase.auth.getSession();
-      await fetchUserAndRole(session?.user ?? null);
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      await fetchUserAndRole(initialSession?.user ?? null);
     };
 
     getInitialSession();
 
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state changed:', event);
+        setSession(session);
         setIsLoading(true);
         fetchUserAndRole(session?.user ?? null);
       }
@@ -68,6 +78,7 @@ export function useAuth() {
 
   return {
     user,
+    session,
     isLoading,
     isAuthenticated: !!user,
     login: (email: string, password: string) => supabase.auth.signInWithPassword({ email, password }),
