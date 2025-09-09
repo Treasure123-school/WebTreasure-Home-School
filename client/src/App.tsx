@@ -33,9 +33,11 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Protected route component that checks for authentication and redirects if not
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
   const { isAuthenticated, user, isLoading } = useAuth();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
+  const currentPath = window.location.pathname;
 
   if (isLoading) {
     return (
@@ -45,26 +47,17 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
     );
   }
   
+  // If not authenticated, redirect to login page
   if (!isAuthenticated) {
     navigate('/login');
     return null;
   }
   
+  // If authenticated but role does not match, redirect to unauthorized
   if (requiredRole && user?.role_name !== requiredRole) {
-    // Redirect logic for all other roles to their specific dashboards
-    switch (user?.role_name) {
-      case 'Teacher':
-        navigate('/teacher');
-        break;
-      case 'Student':
-        navigate('/student');
-        break;
-      case 'Parent':
-        navigate('/parent');
-        break;
-      default:
-        navigate('/unauthorized');
-        break;
+    // Only redirect to unauthorized if user is not in a valid portal path
+    if (currentPath.includes('/admin') || currentPath.includes('/teacher') || currentPath.includes('/student') || currentPath.includes('/parent')) {
+      navigate('/unauthorized');
     }
     return null;
   }
@@ -143,7 +136,6 @@ function App() {
               </ProtectedRoute>
             </Route>
 
-            {/* 404 Not Found route */}
             <Route component={NotFound} />
           </Switch>
         </AuthChecker>
