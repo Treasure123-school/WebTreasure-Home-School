@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+// client/src/pages/Login.tsx
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // Helper function to determine redirection path
   const getTargetPath = (roleName?: string) => {
     switch (roleName?.toLowerCase()) {
       case 'admin':
@@ -33,13 +35,21 @@ export default function Login() {
     }
   };
 
+  // Effect to handle redirection after login
   useEffect(() => {
     if (isAuthenticated && user && !isLoading) {
       const targetPath = getTargetPath(user.role_name);
       setLocation(targetPath);
+      // Optional: Add a toast notification for successful redirection
+      toast({
+        title: "Redirecting...",
+        description: `Welcome, ${user.full_name}!`,
+        variant: "default",
+      });
     }
-  }, [isAuthenticated, user, isLoading, setLocation]);
+  }, [isAuthenticated, user, isLoading, setLocation, toast]);
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -47,16 +57,18 @@ export default function Login() {
 
     try {
       const { error: loginError } = await login(email, password);
+      
       if (loginError) {
         throw new Error(loginError.message || 'Login failed');
       }
       
+      // The useEffect hook will handle the redirection after the state updates
       toast({
         title: "Success",
-        description: "Logged in successfully! Redirecting...",
+        description: "Logged in successfully!",
         variant: "default",
       });
-      
+
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials and try again.');
       toast({
@@ -69,15 +81,12 @@ export default function Login() {
     }
   };
 
+  // ... (rest of the component remains the same)
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardContent className="pt-8 pb-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Checking authentication...</p>
-          </CardContent>
-        </Card>
+      <div className="flex justify-center items-center min-h-screen bg-background">
+        <LoadingSpinner />
+        <span className="ml-4 text-textSecondary">Checking authentication...</span>
       </div>
     );
   }
@@ -87,98 +96,90 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-        <CardHeader className="space-y-1 text-center pb-2 pt-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center shadow-lg">
-              <GraduationCap className="h-10 w-10 text-white" />
-            </div>
-          </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
-            Treasure Home School
-          </CardTitle>
-          <CardDescription className="text-gray-600 text-base">
-            Enter your credentials to access the portal
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-4">
-          {error && (
-            <Alert variant="destructive" className="mb-6 border-l-4 border-l-red-500">
-              <AlertDescription className="font-medium">{error}</AlertDescription>
-            </Alert>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="email" className="text-gray-700 font-medium">
-                Email Address
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                autoComplete="email"
-                className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-              />
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="password" className="text-gray-700 font-medium">
-                  Password
-                </Label>
-                <Link href="/forgot-password">
-                  <Button variant="link" className="text-blue-600 hover:text-blue-800 p-0 h-auto text-sm">
-                    Forgot password?
-                  </Button>
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-                autoComplete="current-password"
-                className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold text-base transition-all duration-200 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
-              disabled={loading}
-              size="lg"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign In to Portal'
+    <div className="flex min-h-screen bg-background text-textPrimary">
+      <div className="w-full flex justify-center items-center p-4 sm:p-6 lg:p-8">
+        <Card className="w-full max-w-md bg-backgroundSurface border-border shadow-lg">
+          <CardHeader className="flex flex-col items-center text-center space-y-2">
+            <GraduationCap className="h-10 w-10 text-primary" />
+            <CardTitle className="text-2xl font-bold">
+              Treasure Home School
+            </CardTitle>
+            <CardDescription className="text-textSecondary">
+              Enter your credentials to access the portal
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <Alert variant="destructive" className="p-3 text-sm">
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </form>
-          <div className="mt-8 p-4 bg-blue-50/50 rounded-lg border border-blue-100">
-            <p className="text-xs text-blue-700 text-center">
-              <strong>Security Notice:</strong> Ensure you're on the official Treasure Home School portal. Never share your credentials with anyone.
-            </p>
-          </div>
-          <div className="mt-6 text-center">
-            <Link href="/">
-              <Button variant="ghost" className="text-gray-600 hover:text-gray-800 transition-colors duration-200">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  autoComplete="email"
+                  className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link href="#" className="text-sm font-medium text-primary hover:underline transition-colors duration-200">
+                    Forgot password?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  autoComplete="current-password"
+                  className="w-full h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors duration-200"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-12 text-base font-semibold transition-colors duration-200"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </div>
+                ) : (
+                  'Sign In to Portal'
+                )}
+              </Button>
+            </form>
+            <div className="text-center text-sm text-textSecondary space-y-2">
+              <p>
+                Security Notice: Ensure you're on the official Treasure Home School portal. Never share your credentials with anyone.
+              </p>
+              <Link href="/" className="text-primary hover:underline flex items-center justify-center transition-colors duration-200">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Return to Homepage
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
