@@ -11,64 +11,40 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          // Try to get user role
-          try {
-            const { data: userData } = await supabase
-              .from('users')
-              .select('roles(role_name)')
-              .eq('id', session.user.id)
-              .single();
+    const fetchUserAndRole = async (sessionUser: User | null) => {
+      if (sessionUser) {
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('roles(role_name)')
+            .eq('id', sessionUser.id)
+            .single();
 
-            setUser({
-              ...session.user,
-              role_name: userData?.roles?.role_name
-            });
-          } catch (error) {
-            // If role fetch fails, still set the user without role
-            setUser(session.user);
-          }
-        } else {
-          setUser(null);
+          setUser({
+            ...sessionUser,
+            role_name: userData?.roles?.role_name
+          });
+        } catch (error) {
+          console.error("Failed to fetch user role:", error);
+          setUser(sessionUser); // Still set the user even if role fetch fails
         }
-      } catch (error) {
-        console.error('Auth error:', error);
+      } else {
         setUser(null);
-      } finally {
-        setIsLoading(false);
       }
+      setIsLoading(false); // This is the crucial line: set loading to false after processing
+    };
+
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetchUserAndRole(session?.user ?? null);
     };
 
     getInitialSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          // Get user role on auth change
-          try {
-            const { data: userData } = await supabase
-              .from('users')
-              .select('roles(role_name)')
-              .eq('id', session.user.id)
-              .single();
-
-            setUser({
-              ...session.user,
-              role_name: userData?.roles?.role_name
-            });
-          } catch (error) {
-            setUser(session.user);
-          }
-        } else {
-          setUser(null);
-        }
-        setIsLoading(false);
+      (event, session) => {
+        setIsLoading(true); // Set loading to true while a change is being processed
+        fetchUserAndRole(session?.user ?? null);
       }
     );
 
