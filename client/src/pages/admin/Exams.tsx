@@ -62,7 +62,6 @@ export default function AdminExams() {
   const [selectedExam, setSelectedExam] = useState<any>(null);
   const [isAddQuestionOpen, setIsAddQuestionOpen] = useState(false);
 
-  // ✅ FIX: Corrected role check to use user.role_name
   useEffect(() => {
     if (!authLoading && (!user || user.role_name !== 'Admin')) {
       toast({
@@ -77,7 +76,6 @@ export default function AdminExams() {
     }
   }, [user, authLoading, toast]);
 
-  // ✅ FIX: Use apiRequest for fetching exams
   const { data: exams = [], isLoading: examsLoading, refetch: refetchExams } = useQuery({
     queryKey: ['exams'],
     queryFn: async () => await apiRequest('GET', '/api/exams'),
@@ -85,7 +83,6 @@ export default function AdminExams() {
     retry: 1,
   });
 
-  // ✅ FIX: Use apiRequest for fetching questions
   const { data: questions = [], isLoading: questionsLoading, refetch: refetchQuestions } = useQuery({
     queryKey: ['questions', selectedExam?.id],
     queryFn: async () => {
@@ -119,7 +116,6 @@ export default function AdminExams() {
     },
   });
 
-  // ✅ FIX: Use apiRequest for mutations
   const createExamMutation = useMutation({
     mutationFn: async (data: z.infer<typeof examFormSchema>) => {
       await apiRequest('POST', '/api/exams', data);
@@ -224,7 +220,7 @@ export default function AdminExams() {
       deleteExamMutation.mutate(id);
     }
   };
-
+  
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -232,7 +228,7 @@ export default function AdminExams() {
       </div>
     );
   }
-  
+
   if (!user || user.role_name !== 'Admin') {
     return (
       <div className="min-h-screen flex items-center justify-center">
