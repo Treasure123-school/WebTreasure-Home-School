@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, GraduationCap } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/LoadingSpinner"; // Make sure to import this
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -19,7 +20,6 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Helper function to determine redirection path
   const getTargetPath = (roleName?: string) => {
     switch (roleName?.toLowerCase()) {
       case 'admin':
@@ -35,12 +35,11 @@ export default function Login() {
     }
   };
 
-  // Effect to handle redirection after login
   useEffect(() => {
+    // This effect handles redirection for already authenticated users.
     if (isAuthenticated && user && !isLoading) {
       const targetPath = getTargetPath(user.role_name);
       setLocation(targetPath);
-      // Optional: Add a toast notification for successful redirection
       toast({
         title: "Redirecting...",
         description: `Welcome, ${user.full_name}!`,
@@ -49,7 +48,6 @@ export default function Login() {
     }
   }, [isAuthenticated, user, isLoading, setLocation, toast]);
 
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -62,7 +60,6 @@ export default function Login() {
         throw new Error(loginError.message || 'Login failed');
       }
       
-      // The useEffect hook will handle the redirection after the state updates
       toast({
         title: "Success",
         description: "Logged in successfully!",
@@ -81,7 +78,8 @@ export default function Login() {
     }
   };
 
-  // ... (rest of the component remains the same)
+  // 🐛 FIX: Add a specific loading and redirecting state to prevent a blank page.
+  // This is a more robust way to handle conditional rendering during a state change.
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-background">
@@ -91,10 +89,17 @@ export default function Login() {
     );
   }
 
+  // If the user is authenticated, show a redirecting message before changing the page
   if (isAuthenticated) {
-    return null;
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen bg-background text-textPrimary">
+        <LoadingSpinner />
+        <span className="mt-4 text-lg text-textSecondary">Redirecting to your dashboard...</span>
+      </div>
+    );
   }
 
+  // Render the main login form
   return (
     <div className="flex min-h-screen bg-background text-textPrimary">
       <div className="w-full flex justify-center items-center p-4 sm:p-6 lg:p-8">
