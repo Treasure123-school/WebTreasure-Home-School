@@ -11,7 +11,6 @@ import AdminDashboard from "@/pages/admin/Dashboard";
 import { queryClient } from "./lib/queryClient";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
-// Import all the new admin pages
 import AdminUsers from "@/pages/admin/Users";
 import CreateUser from "@/pages/admin/CreateUser";
 import AdminAnnouncements from "@/pages/admin/Announcements";
@@ -20,10 +19,8 @@ import AdminGallery from "@/pages/admin/Gallery";
 import AdminEnrollments from "@/pages/admin/Enrollments";
 import Unauthorized from "@/pages/unauthorized";
 
-// Simple component to show while checking auth
 function AuthChecker({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
-  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -31,11 +28,9 @@ function AuthChecker({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
   return <>{children}</>;
 }
 
-// Protected route component that checks for authentication and redirects if not
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
   const { isAuthenticated, user, isLoading } = useAuth();
   const [, navigate] = useLocation();
@@ -48,15 +43,13 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
     );
   }
 
-  // Debugging line
-  console.log("Protected Route Check:", { isAuthenticated, userRole: user?.role_name, requiredRole });
+  console.log("Protected Route Check: User Role -", user?.role_name, "Required Role -", requiredRole);
 
   if (!isAuthenticated) {
     navigate('/login');
     return null;
   }
 
-  // Check for required role if one is specified
   if (requiredRole && user?.role_name !== requiredRole) {
     navigate('/unauthorized');
     return null;
@@ -72,7 +65,6 @@ function App() {
         <Toaster />
         <AuthChecker>
           <Switch>
-            {/* Public routes */}
             <Route path="/" component={Landing} />
             <Route path="/login" component={Login} />
             <Route path="/unauthorized" component={Unauthorized} />
@@ -84,7 +76,6 @@ function App() {
               </ProtectedRoute>
             </Route>
             
-            {/* Admin routes, protected with role check */}
             <Route path="/admin">
               <ProtectedRoute requiredRole="Admin">
                 <AdminDashboard />
@@ -121,7 +112,6 @@ function App() {
               </ProtectedRoute>
             </Route>
             
-            {/* 404 */}
             <Route component={NotFound} />
           </Switch>
         </AuthChecker>
