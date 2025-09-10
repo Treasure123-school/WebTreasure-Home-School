@@ -4,7 +4,6 @@ import { createClient } from '@supabase/supabase-js';
 import { randomBytes } from 'crypto';
 
 // Initialize Supabase clients
-// NOTE: Use SUPABASE_SERVICE_ROLE_KEY for the backend for all admin tasks
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -13,7 +12,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey);
 
 // Authentication middleware
-// This middleware will now validate the Supabase JWT token sent from the client
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
@@ -23,17 +21,14 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     const token = authHeader.substring(7);
     
-    // Use the admin client to verify the token
     const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
     
     if (error || !user) {
       return res.status(403).json({ message: "Invalid or expired token" });
     }
 
-    // Attach the user object to the request for use in route handlers
     (req as any).user = user;
     
-    // Continue to the next middleware or route handler
     next();
   } catch (error) {
     console.error("Authentication middleware error:", error);
@@ -41,7 +36,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   }
 };
 
-// Helper function to get user by ID with their role_name
+// Helper function to get user's role
 async function getUserWithRoleById(userId: string) {
   try {
     const { data, error } = await supabaseAdmin
@@ -64,7 +59,20 @@ async function getUserWithRoleById(userId: string) {
   }
 }
 
-// Email helper function
+// Helper function to check if the user is an admin
+async function isAdmin(req: Request, res: Response, next: NextFunction) {
+  const user = (req as any).user;
+  if (!user) {
+    return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
+  const userProfile = await getUserWithRoleById(user.id);
+  if (userProfile?.role_name !== 'Admin') {
+    return res.status(403).json({ message: "Forbidden: Admin access required" });
+  }
+  next();
+}
+
+// Email helper function (for mock purposes)
 async function sendWelcomeEmail(email: string, password: string, fullName: string, role: string) {
   console.log(`Would send welcome email to: ${email}`);
   console.log(`Credentials: ${email} / ${password}`);
@@ -72,24 +80,49 @@ async function sendWelcomeEmail(email: string, password: string, fullName: strin
 }
 
 export function registerRoutes(app: Express): void {
-  // ===== AUTHENTICATION ROUTES =====
-  // We are removing the custom login endpoint here.
-  // The frontend should now directly use the Supabase client for login.
+  // ===== ADMIN DASHBOARD STATS ROUTE (NEW) =====
+  app.get('/api/admin/dashboard-stats', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const [
+        usersResponse,
+        announcementsResponse,
+        examsResponse,
+        enrollmentsResponse,
+        messagesResponse,
+        galleryResponse
+      ] = await Promise.all([
+        supabaseAdmin.from('users').select('id, email, full_name, roles(role_name)'),
+        supabaseAdmin.from('announcements').select('id, title'),
+        supabaseAdmin.from('exams').select('id, title, isActive'),
+        supabaseAdmin.from('enrollments').select('id, status, child_name, parent_name, child_age'),
+        supabaseAdmin.from('messages').select('id, name, email, message'),
+        supabaseAdmin.from('gallery').select('id, caption')
+      ]);
+
+      if (usersResponse.error || announcementsResponse.error || examsResponse.error || enrollmentsResponse.error || messagesResponse.error || galleryResponse.error) {
+        throw new Error("Failed to fetch one or more dashboard resources.");
+      }
+
+      res.json({
+        users: usersResponse.data,
+        announcements: announcementsResponse.data,
+        exams: examsResponse.data,
+        enrollments: enrollmentsResponse.data,
+        messages: messagesResponse.data,
+        gallery: galleryResponse.data
+      });
+
+    } catch (error: any) {
+      console.error("Dashboard stats fetch error:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch dashboard data" });
+    }
+  });
 
   // ===== ADMIN USER MANAGEMENT ROUTES =====
-  // These routes now use the updated authenticateToken middleware
-
-  app.post('/api/admin/users', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-
+  app.post('/api/admin/users', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
       const { email, password, full_name, role, class: userClass, phone, gender, dob } = req.body;
       
-      // Validation
       if (!email || !password || !full_name || !role) {
         return res.status(400).json({ message: "Email, password, full name, and role are required" });
       }
@@ -98,7 +131,6 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: "Password must be at least 6 characters" });
       }
 
-      // Check if user already exists in the `users` table
       const { data: existingUser } = await supabaseAdmin
         .from('users')
         .select('id')
@@ -109,7 +141,6 @@ export function registerRoutes(app: Express): void {
         return res.status(409).json({ message: "User with this email already exists" });
       }
 
-      // Get role_id for the selected role
       const { data: roleData } = await supabaseAdmin
         .from('roles')
         .select('id')
@@ -120,7 +151,6 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid role specified" });
       }
 
-      // Create user in Auth
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email,
         password,
@@ -132,7 +162,6 @@ export function registerRoutes(app: Express): void {
         return res.status(400).json({ message: authError.message });
       }
 
-      // Create user in database
       const { data: userData, error: userError } = await supabaseAdmin
         .from('users')
         .insert({
@@ -161,13 +190,11 @@ export function registerRoutes(app: Express): void {
         .single();
 
       if (userError) {
-        // Clean up auth user if database insertion fails
         await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
         console.error("Database user creation error:", userError);
         return res.status(400).json({ message: userError.message });
       }
 
-      // Send welcome email
       try {
         await sendWelcomeEmail(email, password, full_name, role);
       } catch (emailError) {
@@ -185,15 +212,7 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  // The rest of your protected admin routes should also use authenticateToken
-  app.get('/api/admin/users', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    
-    // ... rest of the /api/admin/users GET logic
+  app.get('/api/admin/users', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { search, role, class: userClass, page = '1', limit = '10' } = req.query;
       
@@ -218,7 +237,6 @@ export function registerRoutes(app: Express): void {
           .order('created_at', { ascending: false })
           .range(offset, offset + limitNum - 1);
       
-        // Apply filters
         if (search) {
           query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
         }
@@ -254,13 +272,7 @@ export function registerRoutes(app: Express): void {
       }
   });
 
-  app.put('/api/admin/users/:id', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    // ... rest of the route logic
+  app.put('/api/admin/users/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { full_name, class: userClass, phone, gender, dob } = req.body;
@@ -289,13 +301,7 @@ export function registerRoutes(app: Express): void {
       }
   });
   
-  app.put('/api/admin/users/:id/role', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    // ... rest of the route logic
+  app.put('/api/admin/users/:id/role', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { role } = req.body;
@@ -309,22 +315,22 @@ export function registerRoutes(app: Express): void {
           .select('id')
           .eq('role_name', role.charAt(0).toUpperCase() + role.slice(1))
           .single();
+
+      if (!roleData) {
+        return res.status(400).json({ message: "Invalid role specified" });
+      }
       
-        if (!roleData) {
-          return res.status(400).json({ message: "Invalid role specified" });
-        }
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update({ role_id: roleData.id })
+        .eq('id', id);
       
-        const { error } = await supabaseAdmin
-          .from('users')
-          .update({ role_id: roleData.id })
-          .eq('id', id);
+      if (error) {
+        console.error("Error updating user role:", error);
+        return res.status(400).json({ message: error.message });
+      }
       
-        if (error) {
-          console.error("Error updating user role:", error);
-          return res.status(400).json({ message: error.message });
-        }
-      
-        res.json({ message: "User role updated successfully" });
+      res.json({ message: "User role updated successfully" });
       
       } catch (error: any) {
         console.error("Admin user role update error:", error);
@@ -332,13 +338,7 @@ export function registerRoutes(app: Express): void {
       }
   });
   
-  app.delete('/api/admin/users/:id', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    // ... rest of the route logic
+  app.delete('/api/admin/users/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
       
@@ -366,13 +366,7 @@ export function registerRoutes(app: Express): void {
       }
   });
   
-  app.post('/api/admin/users/:id/send-welcome', authenticateToken, async (req: Request, res: Response) => {
-    // Check for admin role
-    const { role_name } = await getUserWithRoleById((req as any).user.id);
-    if (role_name !== 'Admin') {
-      return res.status(403).json({ message: "Forbidden: Admin access required" });
-    }
-    // ... rest of the route logic
+  app.post('/api/admin/users/:id/send-welcome', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
       
@@ -412,13 +406,11 @@ export function registerRoutes(app: Express): void {
       }
   });
 
-  // ===== BASIC CRUD ROUTES =====
-  // These routes can be public or authenticated as needed.
-  // For simplicity, we'll assume they are public for now.
-  app.get('/api/announcements', async (req: Request, res: Response) => {
+  // ===== ANNOUNCEMENTS ROUTES =====
+  app.get('/api/announcements', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
         const { audience } = req.query;
-        let query = supabase.from('announcements').select('*');
+        let query = supabaseAdmin.from('announcements').select('*');
           if (audience) {
             query = query.eq('audience', audience);
           }
@@ -428,7 +420,7 @@ export function registerRoutes(app: Express): void {
         if (error) {
             console.error("Error fetching announcements:", error);
             return res.status(500).json({ message: "Failed to fetch announcements" });
-        }
+          }
             
         res.json(data);
     } catch (error: any) {
@@ -437,9 +429,63 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/gallery', async (req: Request, res: Response) => {
+  app.post('/api/announcements', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
-        const { data, error } = await supabase
+      const { title, body, audience } = req.body;
+      const createdBy = (req as any).user.id;
+      const { data, error } = await supabaseAdmin
+        .from('announcements')
+        .insert({ title, body, audience, created_by: createdBy })
+        .select()
+        .single();
+
+      if (error) throw error;
+      res.status(201).json(data);
+    } catch (error: any) {
+      console.error("Error creating announcement:", error);
+      res.status(500).json({ message: error.message || "Failed to create announcement" });
+    }
+  });
+
+  app.put('/api/announcements/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { title, body, audience } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('announcements')
+        .update({ title, body, audience })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error updating announcement:", error);
+      res.status(500).json({ message: error.message || "Failed to update announcement" });
+    }
+  });
+
+  app.delete('/api/announcements/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from('announcements')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      res.status(204).json({ message: "Announcement deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting announcement:", error);
+      res.status(500).json({ message: error.message || "Failed to delete announcement" });
+    }
+  });
+
+  // ===== GALLERY ROUTES =====
+  app.get('/api/gallery', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const { data, error } = await supabaseAdmin
             .from('gallery')
             .select('*')
             .order('created_at', { ascending: false });
@@ -455,9 +501,44 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/exams', async (req: Request, res: Response) => {
+  app.post('/api/gallery', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
-        const { data, error } = await supabase
+      const { image_url, caption } = req.body;
+      const uploadedBy = (req as any).user.id;
+      const { data, error } = await supabaseAdmin
+        .from('gallery')
+        .insert({ image_url, caption, uploaded_by: uploadedBy })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      res.status(201).json(data);
+    } catch (error: any) {
+      console.error("Error uploading gallery image:", error);
+      res.status(500).json({ message: error.message || "Failed to upload gallery image" });
+    }
+  });
+
+  app.delete('/api/gallery/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from('gallery')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      res.status(204).json({ message: "Image deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting gallery image:", error);
+      res.status(500).json({ message: error.message || "Failed to delete gallery image" });
+    }
+  });
+
+  // ===== EXAMS ROUTES =====
+  app.get('/api/exams', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const { data, error } = await supabaseAdmin
             .from('exams')
             .select('*')
             .order('created_at', { ascending: false });
@@ -473,9 +554,115 @@ export function registerRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/enrollments', async (req: Request, res: Response) => {
+  app.post('/api/exams', authenticateToken, isAdmin, async (req: Request, res: Response) => {
     try {
-        const { data, error } = await supabase
+      const { title, subject, className, duration, isActive } = req.body;
+      const createdBy = (req as any).user.id;
+      const { data, error } = await supabaseAdmin
+        .from('exams')
+        .insert({ title, subject, class: className, duration, isActive, created_by: createdBy })
+        .select()
+        .single();
+      if (error) throw error;
+      res.status(201).json(data);
+    } catch (error: any) {
+      console.error("Error creating exam:", error);
+      res.status(500).json({ message: error.message || "Failed to create exam" });
+    }
+  });
+
+  app.put('/api/exams/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('exams')
+        .update({ is_active: isActive })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error updating exam status:", error);
+      res.status(500).json({ message: error.message || "Failed to update exam status" });
+    }
+  });
+
+  app.delete('/api/exams/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabaseAdmin
+        .from('exams')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      res.status(204).json({ message: "Exam deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting exam:", error);
+      res.status(500).json({ message: error.message || "Failed to delete exam" });
+    }
+  });
+
+  // ===== EXAM QUESTIONS ROUTES (NEW) =====
+  app.get('/api/exams/:examId/questions', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { examId } = req.params;
+      const { data, error } = await supabaseAdmin
+        .from('questions')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error fetching questions:", error);
+      res.status(500).json({ message: error.message || "Failed to fetch questions" });
+    }
+  });
+
+  app.post('/api/exams/:examId/questions', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { examId } = req.params;
+      const { questionText, options, correctAnswer, marks } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('questions')
+        .insert({
+          exam_id: examId,
+          question_text: questionText,
+          options,
+          correct_answer: correctAnswer,
+          marks
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      res.status(201).json(data);
+    } catch (error: any) {
+      console.error("Error creating question:", error);
+      res.status(500).json({ message: error.message || "Failed to create question" });
+    }
+  });
+
+  app.delete('/api/exams/:examId/questions/:questionId', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { questionId } = req.params;
+      const { error } = await supabaseAdmin
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+      if (error) throw error;
+      res.status(204).json({ message: "Question deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting question:", error);
+      res.status(500).json({ message: error.message || "Failed to delete question" });
+    }
+  });
+
+  // ===== ENROLLMENT ROUTES =====
+  app.get('/api/enrollments', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const { data, error } = await supabaseAdmin
             .from('enrollments')
             .select('*')
             .order('created_at', { ascending: false });
@@ -488,6 +675,24 @@ export function registerRoutes(app: Express): void {
     } catch (error: any) {
         console.error("Error fetching enrollments:", error);
         res.status(500).json({ message: "Failed to fetch enrollments" });
+    }
+  });
+
+  app.put('/api/enrollments/:id/status', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const { data, error } = await supabaseAdmin
+        .from('enrollments')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      res.json(data);
+    } catch (error: any) {
+      console.error("Error updating enrollment status:", error);
+      res.status(500).json({ message: error.message || "Failed to update enrollment status" });
     }
   });
 }
