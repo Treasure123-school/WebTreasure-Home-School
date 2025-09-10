@@ -1,9 +1,7 @@
 // client/src/pages/Login.tsx
-// --- FULLY UPDATED AND CORRECTED FILE ---
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { useAuth, AppUser } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +20,6 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // This helper function remains the same.
   const getTargetPath = (roleName?: string | null) => {
     switch (roleName) {
       case 'Admin': return '/admin';
@@ -33,37 +30,42 @@ export default function Login() {
     }
   };
 
-  // ✅ IMPROVEMENT: This useEffect is now only a guard.
-  // It redirects users who are already logged in when they land on this page.
   useEffect(() => {
     if (!isAuthLoading && isAuthenticated && user) {
-        const targetPath = getTargetPath(user.role_name);
-        setLocation(targetPath);
+      const targetPath = getTargetPath(user.role_name);
+      setLocation(targetPath);
     }
   }, [isAuthenticated, isAuthLoading, user, setLocation]);
 
-  // ✅ FIX: The handleSubmit function is now explicit and robust.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // 1. Await our new, powerful login function.
-      const loggedInUser = await login(email, password);
+      const { data, error } = await login(email, password);
       
-      toast({
-        title: "Login Successful!",
-        description: `Welcome back, ${loggedInUser.full_name}. Redirecting...`,
-        variant: 'default',
-      });
+      if (error) {
+        throw error;
+      }
       
-      // 2. Immediately get the target path from the returned user object.
-      const targetPath = getTargetPath(loggedInUser.role_name);
-      
-      // 3. Explicitly navigate to the correct dashboard. No more race conditions.
-      setLocation(targetPath);
-
+      if (data.user) {
+        // Fetch user profile after successful login
+        const { data: userData, error: userError } = await useAuth().user;
+        
+        if (userError) {
+          throw userError;
+        }
+        
+        toast({
+          title: "Login Successful!",
+          description: `Welcome back, ${userData?.full_name || 'User'}. Redirecting...`,
+          variant: 'default',
+        });
+        
+        const targetPath = getTargetPath(userData?.role_name);
+        setLocation(targetPath);
+      }
     } catch (err: any) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
@@ -77,14 +79,12 @@ export default function Login() {
     }
   };
 
-  // This handles the initial loading screen when the app starts.
   if (isAuthLoading) {
     return <LoadingSpinner message="Checking session..." />;
   }
 
-  // This prevents the login form from flashing for an already logged-in user.
   if (isAuthenticated) {
-     return <LoadingSpinner message="Redirecting..." />;
+    return <LoadingSpinner message="Redirecting..." />;
   }
 
   return (
