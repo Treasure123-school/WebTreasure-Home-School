@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { apiRequest } from "@/lib/queryClient"; // Import the new helper
+import { apiRequest } from "@/lib/queryClient";
 import { insertAnnouncementSchema } from "@/lib/types";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +48,6 @@ export default function AdminAnnouncements() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
 
-  // ✅ FIX: Corrected role check to use user.role_name
   useEffect(() => {
     if (!authLoading && (!user || user.role_name !== 'Admin')) {
       toast({
@@ -63,7 +62,6 @@ export default function AdminAnnouncements() {
     }
   }, [user, authLoading, toast]);
 
-  // ✅ FIX: Use apiRequest for fetching announcements
   const { data: announcements = [], isLoading: announcementsLoading, refetch } = useQuery({
     queryKey: ['announcements'],
     queryFn: async () => await apiRequest('GET', '/api/announcements'),
@@ -81,7 +79,6 @@ export default function AdminAnnouncements() {
     },
   });
 
-  // ✅ FIX: Use apiRequest for mutations
   const createMutation = useMutation({
     mutationFn: async (data: z.infer<typeof announcementFormSchema>) => {
       await apiRequest('POST', '/api/announcements', data);
@@ -321,7 +318,6 @@ export default function AdminAnnouncements() {
           </Dialog>
         </div>
 
-        {/* Announcements List */}
         {announcementsLoading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
