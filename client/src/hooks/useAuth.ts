@@ -36,7 +36,7 @@ export function useAuth() {
             .from('users')
             .select('full_name, roles(role_name)')
             .eq('id', initialSession.user.id)
-            .maybeSingle(); // Use maybeSingle to avoid throwing on no results
+            .maybeSingle();
 
           if (userError) {
             console.error("Error fetching initial user profile:", userError);
@@ -46,8 +46,8 @@ export function useAuth() {
           if (isMounted && userData) {
             setUser({
               ...initialSession.user,
-              full_name: userData?.full_name ?? 'User',
-              role_name: (userData?.roles as any)?.role_name ?? null,
+              full_name: userData?.full_name || 'User',
+              role_name: (userData?.roles as any)?.role_name || null,
             });
           }
         }
@@ -95,8 +95,8 @@ export function useAuth() {
 
           setUser({
             ...newSession.user,
-            full_name: userData?.full_name ?? 'User',
-            role_name: (userData?.roles as any)?.role_name ?? null,
+            full_name: userData?.full_name || 'User',
+            role_name: (userData?.roles as any)?.role_name || null,
           });
           setError(null);
         } catch (err: any) {
