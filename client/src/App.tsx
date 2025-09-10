@@ -1,3 +1,6 @@
+// client/src/App.tsx
+// --- FULLY UPDATED FILE ---
+
 import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,12 +24,32 @@ import StudentDashboard from "@/pages/student/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
 
+/**
+ * ✨ NEW: Centralized helper function to determine the dashboard path based on role.
+ * This removes duplicated logic from Login.tsx and ProtectedRoute.
+ */
+const getTargetPathForRole = (roleName?: string | null) => {
+  switch (roleName) {
+    case 'Admin':
+      return '/admin';
+    case 'Teacher':
+      return '/teacher';
+    case 'Student':
+      return '/student';
+    case 'Parent':
+      return '/parent';
+    default:
+      // Fallback for authenticated users without a specific role dashboard
+      return '/home';
+  }
+};
+
 function AuthChecker({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner message="Loading..." />
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Initializing..." />
       </div>
     );
   }
@@ -39,37 +62,31 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner message="Checking authentication..." />
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Verifying access..." />
       </div>
     );
   }
-  
+
   if (!isAuthenticated) {
+    // Redirect to login if not authenticated
     navigate('/login');
     return null;
   }
-  
+
+  // ✨ IMPROVEMENT: Simplified role-based redirection logic.
+  // If a role is required and the user's role doesn't match,
+  // redirect them to THEIR OWN correct dashboard.
   if (requiredRole && user?.role_name !== requiredRole) {
-    switch (user?.role_name) {
-      case 'Teacher':
-        navigate('/teacher');
-        break;
-      case 'Student':
-        navigate('/student');
-        break;
-      case 'Parent':
-        navigate('/parent');
-        break;
-      default:
-        navigate('/unauthorized');
-        break;
-    }
+    const userDashboardPath = getTargetPathForRole(user?.role_name);
+    navigate(userDashboardPath);
     return null;
   }
-  
+
+  // If role matches or no specific role is required, render the component
   return <>{children}</>;
 }
+
 
 function App() {
   return (
@@ -78,7 +95,7 @@ function App() {
         <Toaster />
         <AuthChecker>
           <Switch>
-            {/* Admin routes - ordered from most specific to least specific */}
+            {/* Admin routes */}
             <Route path="/admin/users/create">
               <ProtectedRoute requiredRole="Admin">
                 <CreateUser />
@@ -114,7 +131,7 @@ function App() {
                 <AdminDashboard />
               </ProtectedRoute>
             </Route>
-            
+
             {/* Other protected routes for different roles */}
             <Route path="/teacher">
               <ProtectedRoute requiredRole="Teacher">
@@ -136,11 +153,15 @@ function App() {
             <Route path="/" component={Landing} />
             <Route path="/login" component={Login} />
             <Route path="/unauthorized" component={Unauthorized} />
+            
+            {/* A generic authenticated route */}
             <Route path="/home">
               <ProtectedRoute>
                 <Home />
               </ProtectedRoute>
             </Route>
+
+            {/* Fallback 404 route */}
             <Route component={NotFound} />
           </Switch>
         </AuthChecker>
