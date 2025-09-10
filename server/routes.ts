@@ -657,7 +657,40 @@ export function registerRoutes(app: Express): void {
       console.error("Error deleting question:", error);
       res.status(500).json({ message: error.message || "Failed to delete question" });
     }
-  });
+    });
+    app.put('/api/announcements/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { title, body, audience } = req.body;
+        const { data, error } = await supabaseAdmin
+            .from('announcements')
+            .update({ title, body, audience })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error: any) {
+        console.error("Error updating announcement:", error);
+        res.status(500).json({ message: error.message || "Failed to update announcement" });
+    }
+    });
+    app.delete('/api/announcements/:id', authenticateToken, isAdmin, async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { error } = await supabaseAdmin
+            .from('announcements')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+        res.status(204).json({ message: "Announcement deleted successfully" });
+    } catch (error: any) {
+        console.error("Error deleting announcement:", error);
+        res.status(500).json({ message: error.message || "Failed to delete announcement" });
+    }
+    });
 
   // ===== ENROLLMENT ROUTES =====
   app.get('/api/enrollments', authenticateToken, isAdmin, async (req: Request, res: Response) => {
