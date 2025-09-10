@@ -2,8 +2,8 @@
 import { QueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
 
-// 🐛 CRITICAL FIX: Ensure your backend URL is correct.
-export const API_BASE_URL = 'https://webtreasure-home-school.onrender.com';
+// ✅ FIX: Use the Vercel domain and proxy through the rewrite rule
+export const API_BASE_URL = '';
 
 // This new helper function will be used for all protected API calls.
 export async function apiRequest<T>(
@@ -21,7 +21,6 @@ export async function apiRequest<T>(
     method,
     headers: {
       "Content-Type": "application/json",
-      // ✅ CRITICAL FIX: The access token from the session is now sent.
       "Authorization": `Bearer ${session.access_token}`,
     },
     body: body ? JSON.stringify(body) : undefined,
