@@ -102,10 +102,10 @@ export default function PublicHeader() {
           </Button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - UPDATED WITH ALL NAVIGATION ITEMS */}
         {mobileMenuOpen && (
           <div className="lg:hidden py-4 border-t" data-testid="mobile-menu">
-            <div className="space-y-4">
+            <div className="space-y-2">
               <button
                 onClick={() => scrollToSection('home')}
                 className="block text-textPrimary hover:text-primary font-medium transition-colors w-full text-left py-2"
@@ -120,12 +120,39 @@ export default function PublicHeader() {
               >
                 About
               </button>
+              <button
+                onClick={() => scrollToSection('contact')}
+                className="block bg-accent text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium w-full text-left"
+                data-testid="mobile-nav-enroll"
+              >
+                Enroll Now
+              </button>
+              <button
+                onClick={() => scrollToSection('announcements')}
+                className="block text-textPrimary hover:text-primary font-medium transition-colors w-full text-left py-2"
+                data-testid="mobile-nav-announcements"
+              >
+                Announcements
+              </button>
+              <button
+                onClick={() => scrollToSection('gallery')}
+                className="block text-textPrimary hover:text-primary font-medium transition-colors w-full text-left py-2"
+                data-testid="mobile-nav-gallery"
+              >
+                Gallery
+              </button>
+              <button
+                onClick={() => scrollToSection('contact')}
+                className="block text-textPrimary hover:text-primary font-medium transition-colors w-full text-left py-2"
+                data-testid="mobile-nav-contact"
+              >
+                Contact
+              </button>
+              
               <div className="pt-4 border-t">
-                <p className="text-sm text-textSecondary mb-2">Portal Access:</p>
                 <Link href="/login">
                   <Button
-                    variant="link"
-                    className="block text-primary hover:underline"
+                    className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium w-full"
                     data-testid="mobile-login"
                   >
                     Login to Portal
