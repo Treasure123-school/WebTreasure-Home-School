@@ -1,81 +1,108 @@
 // client/src/hooks/useAuth.ts
-import { useState, useEffect, useRef } from "react";
-import { User, Session } from "@supabase/supabase-js";
+// --- FULLY UPDATED AND CORRECTED FILE ---
+
+import { useState, useEffect, useCallback } from "react";
+import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
-interface AppUser extends User {
+// The AppUser interface remains the same.
+export interface AppUser extends User {
   role_name?: string | null;
+  full_name?: string | null;
 }
 
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const initialLoadRef = useRef(false);
+
+  // ✅ IMPROVEMENT: Encapsulated the role-fetching logic into a reusable function.
+  const fetchUserWithRole = useCallback(async (sessionUser: User | null): Promise<AppUser | null> => {
+    if (!sessionUser) return null;
+
+    try {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('full_name, roles(role_name)')
+        .eq('id', sessionUser.id)
+        .single();
+
+      if (error) {
+        // This is a critical error, we must throw it to be caught by the caller.
+        throw new Error(`Failed to fetch user profile: ${error.message}`);
+      }
+
+      return {
+        ...sessionUser,
+        role_name: (userData?.roles as any)?.role_name || null,
+        full_name: userData?.full_name || 'User',
+      };
+    } catch (error) {
+      console.error("Error in fetchUserWithRole:", error);
+      // Return the base user object even if role fetching fails, but log the error.
+      return { ...sessionUser, role_name: null, full_name: 'User' };
+    }
+  }, []);
 
   useEffect(() => {
-    // This ref prevents the effect from running twice in development
-    if (initialLoadRef.current) return;
-    initialLoadRef.current = true;
+    const getInitialSession = async () => {
+      setIsLoading(true);
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      setSession(initialSession);
+      const fullUser = await fetchUserWithRole(initialSession?.user ?? null);
+      setUser(fullUser);
+      setIsLoading(false);
+    };
 
-    const fetchUserAndRole = async (sessionUser: User | null) => {  
-      if (sessionUser) {  
-        try {  
-          // Fetch the user's role from the 'users' table
-          const { data: userData, error } = await supabase  
-            .from('users')  
-            .select('roles(role_name)')  
-            .eq('id', sessionUser.id)  
-            .single();  
+    getInitialSession();
 
-          if (error) {  
-            console.error("Supabase user data fetch error:", error);  
-            // It's crucial to throw the error here to be caught below
-            throw error;  
-          }  
-            
-          const userRole = userData?.roles?.role_name;  
-          setUser({  
-            ...sessionUser,  
-            role_name: userRole || null  
-          });  
-        } catch (error) {  
-          console.error("Failed to fetch user role, setting to null:", error);  
-          setUser({ ...sessionUser, role_name: null });  
-        }  
-      } else {  
-        setUser(null);  
-      }  
-      setIsLoading(false);  
-    };  
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        const fullUser = await fetchUserWithRole(session?.user ?? null);
+        setUser(fullUser);
+        // Only show loading on initial load, not on subsequent changes.
+        if (isLoading) setIsLoading(false);
+      }
+    );
 
-    const getInitialSession = async () => {  
-      const { data: { session: initialSession } } = await supabase.auth.getSession();  
-      setSession(initialSession);  
-      await fetchUserAndRole(initialSession?.user ?? null);  
-    };  
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserWithRole, isLoading]);
 
-    getInitialSession();  
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(  
-      (event, session) => {  
-        setSession(session);  
-        setIsLoading(true);  
-        fetchUserAndRole(session?.user ?? null);  
-      }  
-    );  
+  // ✅ FIX: The login function is now a powerful, atomic async operation.
+  const login = async (email: string, password: string): Promise<AppUser> => {
+    // 1. Attempt to sign in.
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-    return () => {  
-      subscription.unsubscribe();  
-    };  
-  }, []);
+    if (error) throw error;
+    if (!data.user) throw new Error("Login succeeded but no user object was returned.");
+
+    // 2. Immediately fetch the user's role and full profile.
+    const fullUser = await fetchUserWithRole(data.user);
+    if (!fullUser) throw new Error("Could not retrieve user profile after login.");
+    
+    // 3. Update the global state.
+    setUser(fullUser);
+
+    // 4. Return the complete user object to the caller.
+    return fullUser;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
 
   return {
     user,
     session,
     isLoading,
     isAuthenticated: !!user,
-    login: (email: string, password: string) => supabase.auth.signInWithPassword({ email, password }),
-    logout: () => supabase.auth.signOut()
+    login,
+    logout,
   };
 }
