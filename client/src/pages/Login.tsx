@@ -43,14 +43,24 @@ export default function Login() {
     setError(null);
 
     try {
-      const { error } = await login(email, password);
+      // Call the login function from useAuth
+      const { error: loginError } = await login(email, password);
       
-      if (error) {
-        throw error;
+      if (loginError) {
+        throw loginError;
       }
       
-      // Success message will be shown after redirect
+      // Show success message
+      toast({
+        title: "Login Successful!",
+        description: "Redirecting to your dashboard...",
+        variant: 'default',
+      });
+      
+      // The useEffect above will handle the redirect once the user state is updated
+      
     } catch (err: any) {
+      console.error("Login error:", err);
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       toast({
@@ -63,7 +73,6 @@ export default function Login() {
     }
   };
 
-  // Show login form immediately, redirect will happen automatically if user is already authenticated
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-lg">
