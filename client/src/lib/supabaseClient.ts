@@ -4,21 +4,29 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Check if environment variables are set
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Missing Supabase environment variables. Please check your .env file.'
-  )
-}
+// Create a dummy client that will fail gracefully
+const createDummyClient = () => {
+  console.error('Missing Supabase environment variables. Please check your .env file.');
+  return {
+    auth: {
+      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Missing Supabase config') }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      signInWithPassword: () => Promise.resolve({ error: new Error('Missing Supabase config') }),
+      signOut: () => Promise.resolve({ error: new Error('Missing Supabase config') }),
+    }
+  };
+};
 
-// Create and export the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  }
-})
+// Create the Supabase client
+export const supabase = (!supabaseUrl || !supabaseAnonKey) 
+  ? createDummyClient()
+  : createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
 
 // Temporary: Expose supabase to global scope for debugging
 if (import.meta.env.DEV) {
@@ -29,4 +37,4 @@ if (import.meta.env.DEV) {
 // Optional: Add auth state change listener for debugging
 supabase.auth.onAuthStateChange((event, session) => {
   console.log('Auth state changed:', event, session)
-})
+});
