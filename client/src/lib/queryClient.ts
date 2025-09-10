@@ -2,7 +2,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabaseClient";
 
-// 🐛 CRITICAL FIX: Updated with the correct backend URL from your Vercel logs
+// 🐛 CRITICAL FIX: Ensure your backend URL is correct.
 export const API_BASE_URL = 'https://webtreasure-home-school.onrender.com';
 
 // This new helper function will be used for all protected API calls.
