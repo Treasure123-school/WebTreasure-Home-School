@@ -1,7 +1,4 @@
-// client/src/App.tsx
-// --- FULLY UPDATED AND CORRECTED FILE ---
-
-import { Switch, Route, useLocation, Redirect } from "wouter";
+import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,12 +21,6 @@ import StudentDashboard from "@/pages/student/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
 
-/**
- * ✅ IMPROVEMENT: AuthReadyGuard
- * This component's only job is to show a loading screen while the useAuth hook
- * is performing its initial check. This prevents the rest of the app from rendering
- * prematurely and avoids race conditions.
- */
 function AuthReadyGuard({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
   if (isLoading) {
@@ -42,27 +33,25 @@ function AuthReadyGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/**
- * ✅ IMPROVEMENT: ProtectedRoute
- * This logic is now safer and more robust. It handles one responsibility:
- * ensuring a user is logged in and has the correct role. It no longer performs
- * complex redirects, which prevents the race condition crash.
- */
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
-  const { isAuthenticated, user } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  // 1. If the user is not authenticated at all, redirect to the login page.
-  if (!isAuthenticated) {
-    return <Redirect to="/login" />;
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Checking access..." />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
   }
   
-  // 2. If a specific role is required, and the user's role does not match,
-  //    render the Unauthorized component. This is safer than a redirect.
-  if (requiredRole && user?.role_name !== requiredRole) {
+  if (requiredRole && user.role_name !== requiredRole) {
     return <Unauthorized />;
   }
   
-  // 3. If all checks pass, render the protected component.
   return <>{children}</>;
 }
 
@@ -92,16 +81,32 @@ function App() {
             <Route path="/admin/enrollments">
               <ProtectedRoute requiredRole="Admin"><AdminEnrollments /></ProtectedRoute>
             </Route>
+            <Route path="/admin/dashboard">
+              <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
+            </Route>
             <Route path="/admin">
               <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
             </Route>
             
-            {/* --- OTHER ROLE ROUTES --- */}
+            {/* --- TEACHER ROUTES --- */}
+            <Route path="/teacher/dashboard">
+              <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
+            </Route>
             <Route path="/teacher">
               <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
             </Route>
+            
+            {/* --- STUDENT ROUTES --- */}
+            <Route path="/student/dashboard">
+              <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
+            </Route>
             <Route path="/student">
               <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
+            </Route>
+            
+            {/* --- PARENT ROUTES --- */}
+            <Route path="/parent/dashboard">
+              <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
             </Route>
             <Route path="/parent">
               <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
@@ -118,9 +123,7 @@ function App() {
             <Route path="/unauthorized" component={Unauthorized} />
             
             {/* Fallback 404 Route */}
-            <Route>
-              <NotFound />
-            </Route>
+            <Route component={NotFound} />
           </Switch>
         </AuthReadyGuard>
       </TooltipProvider>
