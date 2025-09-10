@@ -1,11 +1,11 @@
 // client/src/lib/queryClient.ts
 import { QueryClient } from "@tanstack/react-query";
-import { supabase from "./supabaseClient";
+import { supabase } from "./supabaseClient"; // Corrected import statement
 
-// ✅ CRITICAL FIX: The API_BASE_URL should be an empty string for Vercel rewrites.
+// The API_BASE_URL should be an empty string for Vercel rewrites.
 export const API_BASE_URL = '';
 
-// This new helper function will be used for all protected API calls.
+// This helper function makes authenticated API requests.
 export async function apiRequest<T>(
   method: string,
   path: string,
@@ -21,7 +21,6 @@ export async function apiRequest<T>(
     method,
     headers: {
       "Content-Type": "application/json",
-      // ✅ CRITICAL FIX: The access token from the session is now sent.
       "Authorization": `Bearer ${session.access_token}`,
     },
     body: body ? JSON.stringify(body) : undefined,
