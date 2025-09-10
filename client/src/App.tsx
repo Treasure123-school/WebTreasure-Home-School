@@ -23,6 +23,7 @@ import ParentDashboard from "@/pages/parent/Dashboard";
 
 function AuthReadyGuard({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
+  
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -30,6 +31,7 @@ function AuthReadyGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+  
   return <>{children}</>;
 }
 
@@ -55,77 +57,82 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
   return <>{children}</>;
 }
 
+// New component to handle public routes without waiting for auth
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Loading..." />
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <AuthReadyGuard>
-          <Switch>
-            {/* --- ADMIN ROUTES --- */}
-            <Route path="/admin/users/create">
-              <ProtectedRoute requiredRole="Admin"><CreateUser /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/users">
-              <ProtectedRoute requiredRole="Admin"><AdminUsers /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/announcements">
-              <ProtectedRoute requiredRole="Admin"><AdminAnnouncements /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/exams">
-              <ProtectedRoute requiredRole="Admin"><AdminExams /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/gallery">
-              <ProtectedRoute requiredRole="Admin"><AdminGallery /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/enrollments">
-              <ProtectedRoute requiredRole="Admin"><AdminEnrollments /></ProtectedRoute>
-            </Route>
-            <Route path="/admin/dashboard">
-              <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
-            </Route>
-            <Route path="/admin">
-              <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
-            </Route>
-            
-            {/* --- TEACHER ROUTES --- */}
-            <Route path="/teacher/dashboard">
-              <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
-            </Route>
-            <Route path="/teacher">
-              <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
-            </Route>
-            
-            {/* --- STUDENT ROUTES --- */}
-            <Route path="/student/dashboard">
-              <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
-            </Route>
-            <Route path="/student">
-              <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
-            </Route>
-            
-            {/* --- PARENT ROUTES --- */}
-            <Route path="/parent/dashboard">
-              <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
-            </Route>
-            <Route path="/parent">
-              <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
-            </Route>
-
-            {/* --- GENERIC AUTHENTICATED ROUTE --- */}
-            <Route path="/home">
-              <ProtectedRoute><Home /></ProtectedRoute>
-            </Route>
-
-            {/* --- PUBLIC ROUTES --- */}
-            <Route path="/" component={Landing} />
-            <Route path="/login" component={Login} />
-            <Route path="/unauthorized" component={Unauthorized} />
-            
-            {/* Fallback 404 Route */}
-            <Route component={NotFound} />
-          </Switch>
-        </AuthReadyGuard>
+        <Switch>
+          {/* Public Routes - These don't wait for auth check */}
+          <Route path="/">
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
+          </Route>
+          <Route path="/login">
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          </Route>
+          
+          {/* Protected Routes - These require auth check */}
+          <Route path="/admin/users/create">
+            <ProtectedRoute requiredRole="Admin"><CreateUser /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/users">
+            <ProtectedRoute requiredRole="Admin"><AdminUsers /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/announcements">
+            <ProtectedRoute requiredRole="Admin"><AdminAnnouncements /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/exams">
+            <ProtectedRoute requiredRole="Admin"><AdminExams /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/gallery">
+            <ProtectedRoute requiredRole="Admin"><AdminGallery /></ProtectedRoute>
+          </Route>
+          <Route path="/admin/enrollments">
+            <ProtectedRoute requiredRole="Admin"><AdminEnrollments /></ProtectedRoute>
+          </Route>
+          <Route path="/admin">
+            <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
+          </Route>
+          
+          {/* Other Protected Routes */}
+          <Route path="/teacher">
+            <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
+          </Route>
+          <Route path="/student">
+            <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
+          </Route>
+          <Route path="/parent">
+            <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
+          </Route>
+          <Route path="/home">
+            <ProtectedRoute><Home /></ProtectedRoute>
+          </Route>
+          
+          {/* More Public Routes */}
+          <Route path="/unauthorized" component={Unauthorized} />
+          
+          {/* Fallback 404 Route */}
+          <Route component={NotFound} />
+        </Switch>
       </TooltipProvider>
     </QueryClientProvider>
   );
