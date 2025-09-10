@@ -46,7 +46,6 @@ export default function AdminDashboard() {
     queryFn: async () => {
       console.log('Fetching admin dashboard data...');
       try {
-        // ✅ FIX: Use the new single API endpoint for dashboard stats
         const response = await apiRequest<DashboardData>('GET', '/api/admin/dashboard-stats');
         return response;
       } catch (error) {
@@ -158,9 +157,7 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* Stats Cards - MAKE THESE CLICKABLE */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Users Card - MAKE CLICKABLE */}
           <Link href="/admin/users">
             <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer group" data-testid="stat-total-users">
               <CardContent className="p-6">
@@ -178,7 +175,6 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          {/* Active Exams Card - MAKE CLICKABLE */}
           <Link href="/admin/exams">
             <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all cursor-pointer group" data-testid="stat-active-exams">
               <CardContent className="p-6">
@@ -196,7 +192,6 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          {/* Announcements Card - MAKE CLICKABLE */}
           <Link href="/admin/announcements">
             <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all cursor-pointer group" data-testid="stat-announcements">
               <CardContent className="p-6">
@@ -214,7 +209,6 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          {/* Pending Enrollments Card - MAKE CLICKABLE */}
           <Link href="/admin/enrollments">
             <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all cursor-pointer group" data-testid="stat-pending-enrollments">
               <CardContent className="p-6">
@@ -234,7 +228,6 @@ export default function AdminDashboard() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8 mb-8">
-          {/* Users Overview - MAKE THIS CARD CLICKABLE */}
           <Link href="/admin/users">
             <Card className="hover:shadow-md transition-shadow cursor-pointer group" data-testid="users-overview">
               <CardHeader>
@@ -269,7 +262,6 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          {/* Quick Stats */}
           <Card data-testid="quick-stats">
             <CardHeader>
               <CardTitle>System Overview</CardTitle>
@@ -309,9 +301,7 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Recent Activity */}
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Recent Enrollments - MAKE CLICKABLE */}
           <Link href="/admin/enrollments">
             <Card className="hover:shadow-md transition-shadow cursor-pointer group" data-testid="recent-enrollments">
               <CardHeader>
@@ -349,7 +339,6 @@ export default function AdminDashboard() {
             </Card>
           </Link>
 
-          {/* Recent Messages */}
           <Card data-testid="recent-messages">
             <CardHeader>
               <CardTitle>Recent Messages</CardTitle>
@@ -381,7 +370,6 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Quick Action Buttons at Bottom */}
         <div className="mt-8 flex flex-wrap gap-4 justify-center">
           <Link href="/admin/users">
             <Button className="flex items-center gap-2">
@@ -389,7 +377,7 @@ export default function AdminDashboard() {
               Manage Users
             </Button>
           </Link>
-          <Link href="/admin/users/create"> {/* Corrected path */}
+          <Link href="/admin/users/create">
             <Button variant="outline" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Create New User
