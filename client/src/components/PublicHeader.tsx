@@ -67,16 +67,18 @@ export default function PublicHeader() {
               Contact
             </button>
             
+            {/* Enroll Now with orange background on desktop */}
             <button
               onClick={() => scrollToSection('contact')}
-              className="text-accent hover:text-orange-600 font-medium transition-colors duration-200"
+              className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-orange-600 font-medium transition-colors duration-200"
               data-testid="nav-enroll"
             >
               Enroll Now
             </button>
             
+            {/* Login to Portal with blue background on desktop */}
             <Link href="/login">
-              <span className="text-primary hover:text-blue-700 font-medium transition-colors duration-200 cursor-pointer" data-testid="portal-login-button">
+              <span className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors duration-200 cursor-pointer" data-testid="portal-login-button">
                 Login to Portal
               </span>
             </Link>
@@ -94,7 +96,7 @@ export default function PublicHeader() {
           </Button>
         </div>
 
-        {/* Mobile Menu - With Hover Effects and Scrollable */}
+        {/* Mobile Menu - Unchanged (no background colors) */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-200" data-testid="mobile-menu">
             <div className="py-4 px-6 space-y-4 max-h-[70vh] overflow-y-auto">
