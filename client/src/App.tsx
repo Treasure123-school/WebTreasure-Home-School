@@ -13,27 +13,47 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Switch>
-          {/* Public Routes - No authentication needed */}
+          {/* Public Routes - No authentication checks */}
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           
-          {/* Temporary: Show maintenance message for protected routes */}
+          {/* Show maintenance message for protected routes */}
           <Route path="/admin/*">
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold mb-4">Admin Portal</h1>
-                <p>Authentication system is currently being optimized.</p>
-                <p>Please check back later.</p>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                <h1 className="text-2xl font-bold text-blue-800 mb-4">Admin Portal</h1>
+                <p className="text-gray-600 mb-2">This section is currently under maintenance.</p>
+                <p className="text-gray-600">Please check back later or contact support.</p>
               </div>
             </div>
           </Route>
           
           <Route path="/teacher/*">
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold mb-4">Teacher Portal</h1>
-                <p>Authentication system is currently being optimized.</p>
-                <p>Please check back later.</p>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                <h1 className="text-2xl font-bold text-green-800 mb-4">Teacher Portal</h1>
+                <p className="text-gray-600 mb-2">This section is currently under maintenance.</p>
+                <p className="text-gray-600">Please check back later or contact support.</p>
+              </div>
+            </div>
+          </Route>
+          
+          <Route path="/student/*">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                <h1 className="text-2xl font-bold text-purple-800 mb-4">Student Portal</h1>
+                <p className="text-gray-600 mb-2">This section is currently under maintenance.</p>
+                <p className="text-gray-600">Please check back later or contact support.</p>
+              </div>
+            </div>
+          </Route>
+          
+          <Route path="/parent/*">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+              <div className="text-center p-8 bg-white rounded-lg shadow-md">
+                <h1 className="text-2xl font-bold text-orange-800 mb-4">Parent Portal</h1>
+                <p className="text-gray-600 mb-2">This section is currently under maintenance.</p>
+                <p className="text-gray-600">Please check back later or contact support.</p>
               </div>
             </div>
           </Route>
