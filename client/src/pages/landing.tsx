@@ -1,4 +1,4 @@
-import Header from "@/components/header";
+import PublicHeader from "@/components/PublicHeader"; // Use your public header
 import HeroSection from "@/components/hero-section";
 import AboutSection from "@/components/about-section";
 import AnnouncementsSection from "@/components/announcements-section";
@@ -10,7 +10,7 @@ import Footer from "@/components/footer";
 export default function Landing() {
   return (
     <div className="min-h-screen bg-backgroundSurface">
-      <Header />
+      <PublicHeader /> {/* Use the public header without auth */}
       <HeroSection />
       <AboutSection />
       <AnnouncementsSection />
