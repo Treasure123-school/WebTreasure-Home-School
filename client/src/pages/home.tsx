@@ -7,8 +7,8 @@ export default function Home() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (user?.role) {
-      switch (user.role) {
+    if (user?.role_name) {
+      switch (user.role_name.toLowerCase()) {
         case 'admin':
           setLocation('/admin');
           break;
@@ -22,7 +22,7 @@ export default function Home() {
           setLocation('/parent');
           break;
         default:
-          // Stay on home page
+          // Stay on home page for unknown roles
           break;
       }
     }
