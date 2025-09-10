@@ -9,14 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, isLoading: isAuthLoading, user } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -30,12 +29,13 @@ export default function Login() {
     }
   };
 
+  // Redirect already authenticated users
   useEffect(() => {
-    if (!isAuthLoading && isAuthenticated && user) {
+    if (isAuthenticated && user) {
       const targetPath = getTargetPath(user.role_name);
       setLocation(targetPath);
     }
-  }, [isAuthenticated, isAuthLoading, user, setLocation]);
+  }, [isAuthenticated, user, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,29 +43,13 @@ export default function Login() {
     setError(null);
 
     try {
-      const { data, error } = await login(email, password);
+      const { error } = await login(email, password);
       
       if (error) {
         throw error;
       }
       
-      if (data.user) {
-        // Fetch user profile after successful login
-        const { data: userData, error: userError } = await useAuth().user;
-        
-        if (userError) {
-          throw userError;
-        }
-        
-        toast({
-          title: "Login Successful!",
-          description: `Welcome back, ${userData?.full_name || 'User'}. Redirecting...`,
-          variant: 'default',
-        });
-        
-        const targetPath = getTargetPath(userData?.role_name);
-        setLocation(targetPath);
-      }
+      // Success message will be shown after redirect
     } catch (err: any) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
@@ -79,14 +63,7 @@ export default function Login() {
     }
   };
 
-  if (isAuthLoading) {
-    return <LoadingSpinner message="Checking session..." />;
-  }
-
-  if (isAuthenticated) {
-    return <LoadingSpinner message="Redirecting..." />;
-  }
-
+  // Show login form immediately, redirect will happen automatically if user is already authenticated
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-lg">
@@ -104,11 +81,25 @@ export default function Login() {
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" />
+              <Input 
+                id="email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+                placeholder="you@example.com" 
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
+              <Input 
+                id="password" 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+                placeholder="••••••••" 
+              />
             </div>
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? (
