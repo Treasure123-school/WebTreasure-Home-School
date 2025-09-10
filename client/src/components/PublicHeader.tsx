@@ -33,35 +33,35 @@ export default function PublicHeader() {
           <nav className="hidden lg:flex items-center space-x-8" data-testid="desktop-nav">
             <button
               onClick={() => scrollToSection('home')}
-              className="text-textPrimary hover:text-primary font-medium transition-colors"
+              className="text-textPrimary hover:text-primary font-medium transition-colors duration-200"
               data-testid="nav-home"
             >
               Home
             </button>
             <button
               onClick={() => scrollToSection('about')}
-              className="text-textPrimary hover:text-primary font-medium transition-colors"
+              className="text-textPrimary hover:text-primary font-medium transition-colors duration-200"
               data-testid="nav-about"
             >
               About
             </button>
             <button
               onClick={() => scrollToSection('announcements')}
-              className="text-textPrimary hover:text-primary font-medium transition-colors"
+              className="text-textPrimary hover:text-primary font-medium transition-colors duration-200"
               data-testid="nav-announcements"
             >
               Announcements
             </button>
             <button
               onClick={() => scrollToSection('gallery')}
-              className="text-textPrimary hover:text-primary font-medium transition-colors"
+              className="text-textPrimary hover:text-primary font-medium transition-colors duration-200"
               data-testid="nav-gallery"
             >
               Gallery
             </button>
             <button
               onClick={() => scrollToSection('contact')}
-              className="text-textPrimary hover:text-primary font-medium transition-colors"
+              className="text-textPrimary hover:text-primary font-medium transition-colors duration-200"
               data-testid="nav-contact"
             >
               Contact
@@ -69,14 +69,14 @@ export default function PublicHeader() {
             
             <button
               onClick={() => scrollToSection('contact')}
-              className="text-accent hover:text-orange-600 font-medium transition-colors"
+              className="text-accent hover:text-orange-600 font-medium transition-colors duration-200"
               data-testid="nav-enroll"
             >
               Enroll Now
             </button>
             
             <Link href="/login">
-              <span className="text-primary hover:text-blue-700 font-medium transition-colors cursor-pointer" data-testid="portal-login-button">
+              <span className="text-primary hover:text-blue-700 font-medium transition-colors duration-200 cursor-pointer" data-testid="portal-login-button">
                 Login to Portal
               </span>
             </Link>
@@ -94,13 +94,13 @@ export default function PublicHeader() {
           </Button>
         </div>
 
-        {/* Mobile Menu - Simple Dropdown (No Background Colors) */}
+        {/* Mobile Menu - With Hover Effects and Scrollable */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-200" data-testid="mobile-menu">
-            <div className="py-4 px-6 space-y-4">
+            <div className="py-4 px-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <button
                 onClick={() => scrollToSection('home')}
-                className="block w-full text-left py-2 text-textPrimary font-medium"
+                className="block w-full text-left py-2 text-textPrimary font-medium hover:text-primary transition-colors duration-200"
                 data-testid="mobile-nav-home"
               >
                 Home
@@ -108,7 +108,7 @@ export default function PublicHeader() {
               
               <button
                 onClick={() => scrollToSection('about')}
-                className="block w-full text-left py-2 text-textPrimary font-medium"
+                className="block w-full text-left py-2 text-textPrimary font-medium hover:text-primary transition-colors duration-200"
                 data-testid="mobile-nav-about"
               >
                 About
@@ -116,7 +116,7 @@ export default function PublicHeader() {
               
               <button
                 onClick={() => scrollToSection('announcements')}
-                className="block w-full text-left py-2 text-textPrimary font-medium"
+                className="block w-full text-left py-2 text-textPrimary font-medium hover:text-primary transition-colors duration-200"
                 data-testid="mobile-nav-announcements"
               >
                 Announcements
@@ -124,7 +124,7 @@ export default function PublicHeader() {
               
               <button
                 onClick={() => scrollToSection('gallery')}
-                className="block w-full text-left py-2 text-textPrimary font-medium"
+                className="block w-full text-left py-2 text-textPrimary font-medium hover:text-primary transition-colors duration-200"
                 data-testid="mobile-nav-gallery"
               >
                 Gallery
@@ -132,7 +132,7 @@ export default function PublicHeader() {
               
               <button
                 onClick={() => scrollToSection('contact')}
-                className="block w-full text-left py-2 text-textPrimary font-medium"
+                className="block w-full text-left py-2 text-textPrimary font-medium hover:text-primary transition-colors duration-200"
                 data-testid="mobile-nav-contact"
               >
                 Contact
@@ -140,14 +140,14 @@ export default function PublicHeader() {
               
               <button
                 onClick={() => scrollToSection('contact')}
-                className="block w-full text-left py-2 text-accent font-medium"
+                className="block w-full text-left py-2 text-accent font-medium hover:text-orange-600 transition-colors duration-200"
                 data-testid="mobile-nav-enroll"
               >
                 Enroll Now
               </button>
               
               <Link href="/login">
-                <span className="block w-full text-left py-2 text-primary font-medium cursor-pointer" data-testid="mobile-login">
+                <span className="block w-full text-left py-2 text-primary font-medium hover:text-blue-700 transition-colors duration-200 cursor-pointer" data-testid="mobile-login">
                   Login to Portal
                 </span>
               </Link>
