@@ -14,47 +14,63 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to fetch user profile
+  const fetchUserProfile = async (userId: string): Promise<{ full_name?: string; role_name?: string } | null> => {
+    try {
+      const { data, error: queryError } = await supabase
+        .from('users')
+        .select('full_name, roles(role_name)')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (queryError) {
+        console.error("Error fetching user profile:", queryError);
+        return null;
+      }
+
+      return {
+        full_name: data?.full_name || 'User',
+        role_name: (data?.roles as any)?.role_name || null
+      };
+    } catch (err) {
+      console.error("Exception in fetchUserProfile:", err);
+      return null;
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
-    
-    const getInitialSessionAndUser = async () => {
+    let authSubscription: any = null;
+
+    const initializeAuth = async () => {
       try {
-        // Get the session from Supabase
+        // Get initial session
         const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
           throw sessionError;
         }
-        
+
         if (isMounted) {
           setSession(initialSession);
         }
 
+        // If user is authenticated, fetch their profile
         if (initialSession?.user) {
-          // If a user exists, fetch their profile data (role, full name)
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('full_name, roles(role_name)')
-            .eq('id', initialSession.user.id)
-            .maybeSingle();
-
-          if (userError) {
-            console.error("Error fetching initial user profile:", userError);
-            setError("Failed to load user profile");
-          }
+          const userProfile = await fetchUserProfile(initialSession.user.id);
           
-          if (isMounted && userData) {
+          if (isMounted && userProfile) {
             setUser({
               ...initialSession.user,
-              full_name: userData?.full_name || 'User',
-              role_name: (userData?.roles as any)?.role_name || null,
+              full_name: userProfile.full_name,
+              role_name: userProfile.role_name,
             });
           }
         }
       } catch (err: any) {
-        console.error("Error in getInitialSessionAndUser:", err);
+        console.error("Error initializing auth:", err);
         if (isMounted) {
-          setError(err.message || "Authentication error");
+          setError(err.message || "Authentication initialization failed");
         }
       } finally {
         if (isMounted) {
@@ -63,55 +79,90 @@ export function useAuth() {
       }
     };
 
-    getInitialSessionAndUser();
+    initializeAuth();
 
-    // Set up a subscription to listen for future changes (login, logout)
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
         if (!isMounted) return;
         
         setSession(newSession);
         
-        // If the user logs out, newSession will be null, and we set user to null
         if (!newSession) {
+          // User signed out
           setUser(null);
           setError(null);
           return;
         }
         
-        // If the user logs in, we fetch their profile
+        // User signed in or session refreshed
         try {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('full_name, roles(role_name)')
-            .eq('id', newSession.user.id)
-            .maybeSingle();
-            
-          if (userError) {
-            console.error("Error fetching user profile on auth change:", userError);
-            setError("Failed to load user profile");
-            return;
+          const userProfile = await fetchUserProfile(newSession.user.id);
+          
+          if (userProfile) {
+            setUser({
+              ...newSession.user,
+              full_name: userProfile.full_name,
+              role_name: userProfile.role_name,
+            });
+            setError(null);
           }
-
-          setUser({
-            ...newSession.user,
-            full_name: userData?.full_name || 'User',
-            role_name: (userData?.roles as any)?.role_name || null,
-          });
-          setError(null);
         } catch (err: any) {
-          console.error("Error in auth state change handler:", err);
-          setError(err.message || "Authentication error");
+          console.error("Error handling auth state change:", err);
+          setError(err.message || "Failed to process authentication change");
         }
       }
     );
 
-    // Cleanup the subscription when the component unmounts
+    authSubscription = subscription;
+
+    // Cleanup function
     return () => {
       isMounted = false;
-      subscription.unsubscribe();
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
     };
   }, []);
+
+  // Enhanced login function with better error handling
+  const enhancedLogin = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      // Fetch user profile after successful login
+      if (data.user) {
+        const userProfile = await fetchUserProfile(data.user.id);
+        if (userProfile) {
+          const updatedUser = {
+            ...data.user,
+            full_name: userProfile.full_name,
+            role_name: userProfile.role_name,
+          };
+          setUser(updatedUser);
+          return { data: { user: updatedUser }, error: null };
+        }
+      }
+
+      return { data, error: null };
+    } catch (err: any) {
+      const errorMsg = err.message || "Login failed";
+      setError(errorMsg);
+      return { data: null, error: err };
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return {
     user,
@@ -119,8 +170,20 @@ export function useAuth() {
     isLoading,
     error,
     isAuthenticated: !!user,
-    login: (email: string, password: string) => supabase.auth.signInWithPassword({ email, password }),
+    login: enhancedLogin,
     logout: () => supabase.auth.signOut(),
     clearError: () => setError(null),
+    refreshUser: async () => {
+      if (user) {
+        const userProfile = await fetchUserProfile(user.id);
+        if (userProfile) {
+          setUser({
+            ...user,
+            full_name: userProfile.full_name,
+            role_name: userProfile.role_name,
+          });
+        }
+      }
+    },
   };
 }
