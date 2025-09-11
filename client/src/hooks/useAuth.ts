@@ -14,8 +14,8 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper function to fetch user profile
-  const fetchUserProfile = async (userId: string): Promise<{ full_name?: string; role_name?: string } | null> => {
+  // Fetch user profile from database
+  const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error: queryError } = await supabase
         .from('users')
@@ -40,20 +40,23 @@ export function useAuth() {
 
   useEffect(() => {
     let isMounted = true;
-    let authSubscription: any = null;
 
     const initializeAuth = async () => {
       try {
-        // Get initial session
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
+        // Get initial session without blocking UI
+        const { data: { session: initialSession }, error: sessionError } = 
+          await supabase.auth.getSession();
+
+        if (!isMounted) return;
+
         if (sessionError) {
-          throw sessionError;
+          console.error("Session error:", sessionError);
+          setError("Failed to initialize authentication");
+          setIsLoading(false);
+          return;
         }
 
-        if (isMounted) {
-          setSession(initialSession);
-        }
+        setSession(initialSession);
 
         // If user is authenticated, fetch their profile
         if (initialSession?.user) {
@@ -81,20 +84,20 @@ export function useAuth() {
 
     initializeAuth();
 
-    // Set up auth state change listener
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         if (!isMounted) return;
-        
+
         setSession(newSession);
-        
+
         if (!newSession) {
           // User signed out
           setUser(null);
           setError(null);
           return;
         }
-        
+
         // User signed in or session refreshed
         try {
           const userProfile = await fetchUserProfile(newSession.user.id);
@@ -114,23 +117,17 @@ export function useAuth() {
       }
     );
 
-    authSubscription = subscription;
-
     // Cleanup function
     return () => {
       isMounted = false;
-      if (authSubscription) {
-        authSubscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
   }, []);
 
-  // Enhanced login function with better error handling
-  const enhancedLogin = async (email: string, password: string) => {
+  // Enhanced login function
+  const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
       setError(null);
-      
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -140,27 +137,11 @@ export function useAuth() {
         throw authError;
       }
 
-      // Fetch user profile after successful login
-      if (data.user) {
-        const userProfile = await fetchUserProfile(data.user.id);
-        if (userProfile) {
-          const updatedUser = {
-            ...data.user,
-            full_name: userProfile.full_name,
-            role_name: userProfile.role_name,
-          };
-          setUser(updatedUser);
-          return { data: { user: updatedUser }, error: null };
-        }
-      }
-
       return { data, error: null };
     } catch (err: any) {
       const errorMsg = err.message || "Login failed";
       setError(errorMsg);
       return { data: null, error: err };
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -170,20 +151,8 @@ export function useAuth() {
     isLoading,
     error,
     isAuthenticated: !!user,
-    login: enhancedLogin,
+    login,
     logout: () => supabase.auth.signOut(),
     clearError: () => setError(null),
-    refreshUser: async () => {
-      if (user) {
-        const userProfile = await fetchUserProfile(user.id);
-        if (userProfile) {
-          setUser({
-            ...user,
-            full_name: userProfile.full_name,
-            role_name: userProfile.role_name,
-          });
-        }
-      }
-    },
   };
 }
