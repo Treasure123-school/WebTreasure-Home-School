@@ -1,171 +1,77 @@
-// client/src/App.tsx
-import { Switch, Route } from "wouter";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
-import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
-import Login from "@/pages/Login";
-import Home from "@/pages/home";
-import AdminDashboard from "@/pages/admin/Dashboard";
-import { queryClient } from "./lib/queryClient";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import AdminUsers from "@/pages/admin/Users";
-import CreateUser from "@/pages/admin/CreateUser";
-import AdminAnnouncements from "@/pages/admin/Announcements";
-import AdminExams from "@/pages/admin/Exams";
-import AdminGallery from "@/pages/admin/Gallery";
-import AdminEnrollments from "@/pages/admin/Enrollments";
-import Unauthorized from "@/pages/unauthorized";
-import StudentDashboard from "@/pages/student/Dashboard";
-import TeacherDashboard from "@/pages/teacher/Dashboard";
-import ParentDashboard from "@/pages/parent/Dashboard";
-
-// Public routes load immediately without any auth checks
-function PublicRoute({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
-
-// Protected routes check authentication + role
-function ProtectedRoute({
-  children,
-  requiredRole,
-}: {
-  children: React.ReactNode;
-  requiredRole?: string;
-}) {
-  const { isAuthenticated, user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Verifying access..." />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <Login />;
-  }
-
-  if (requiredRole && user?.role_name !== requiredRole) {
-    return <Unauthorized />;
-  }
-
-  return <>{children}</>;
-}
+import { useAuth } from '@/hooks/useAuth';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import Login from '@/pages/Login';
+import AdminDashboard from '@/pages/admin/Dashboard';
+import TeacherDashboard from '@/pages/teacher/Dashboard';
+import StudentDashboard from '@/pages/student/Dashboard';
+import ParentDashboard from '@/pages/parent/Dashboard';
+import Unauthorized from '@/pages/unauthorized';
+import Landing from '@/pages/landing';
 
 function App() {
-  const { isLoading } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
-  // Show app loading state only during initial auth check
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Initializing application..." />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">Initializing application...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Switch>
-          {/* Public Routes - No authentication required */}
-          <Route path="/">
-            <PublicRoute>
-              <Landing />
-            </PublicRoute>
-          </Route>
-          
-          <Route path="/login">
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          </Route>
-          
-          <Route path="/unauthorized">
-            <PublicRoute>
+    <Router>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Landing />} />
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <Login />} />
+        
+        {/* Protected routes */}
+        <Route 
+          path="/admin/*" 
+          element={isAuthenticated && user?.role_name === 'Admin' ? 
+            <AdminDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/teacher/*" 
+          element={isAuthenticated && user?.role_name === 'Teacher' ? 
+            <TeacherDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/student/*" 
+          element={isAuthenticated && user?.role_name === 'Student' ? 
+            <StudentDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/parent/*" 
+          element={isAuthenticated && user?.role_name === 'Parent' ? 
+            <ParentDashboard /> : <Unauthorized />} 
+        />
+        
+        {/* Dashboard redirect based on role */}
+        <Route 
+          path="/dashboard" 
+          element={
+            isAuthenticated ? (
+              user?.role_name === 'Admin' ? <Navigate to="/admin" /> :
+              user?.role_name === 'Teacher' ? <Navigate to="/teacher" /> :
+              user?.role_name === 'Student' ? <Navigate to="/student" /> :
+              user?.role_name === 'Parent' ? <Navigate to="/parent" /> :
               <Unauthorized />
-            </PublicRoute>
-          </Route>
-
-          {/* Protected Routes - Authentication required */}
-          <Route path="/admin/users/create">
-            <ProtectedRoute requiredRole="Admin">
-              <CreateUser />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/users">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminUsers />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/announcements">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminAnnouncements />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/exams">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminExams />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/gallery">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminGallery />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin/enrollments">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminEnrollments />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/admin">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/teacher">
-            <ProtectedRoute requiredRole="Teacher">
-              <TeacherDashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/student">
-            <ProtectedRoute requiredRole="Student">
-              <StudentDashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/parent">
-            <ProtectedRoute requiredRole="Parent">
-              <ParentDashboard />
-            </ProtectedRoute>
-          </Route>
-          
-          <Route path="/home">
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
-          </Route>
-
-          {/* Fallback 404 Route */}
-          <Route>
-            <NotFound />
-          </Route>
-        </Switch>
-      </TooltipProvider>
-    </QueryClientProvider>
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+        
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
   );
 }
 
