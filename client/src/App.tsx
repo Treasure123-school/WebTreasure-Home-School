@@ -1,73 +1,75 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '@/hooks/useAuth';
-import PublicLayout from '@/layouts/PublicLayout';
-import PrivateLayout from '@/layouts/PrivateLayout';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
-// Public Pages
-import HomePage from '@/pages/HomePage';
-import AboutPage from '@/pages/AboutPage';
-import ContactPage from '@/pages/ContactPage';
-import LoginPage from '@/pages/LoginPage';
+// Public Pages - from your actual file structure
+import Landing from '@/pages/landing';
+import Login from '@/pages/Login';
+import Unauthorized from '@/pages/unauthorized';
 
-// Private Pages
+// Private Pages - from your actual file structure
 import AdminDashboard from '@/pages/admin/Dashboard';
 import TeacherDashboard from '@/pages/teacher/Dashboard';
 import StudentDashboard from '@/pages/student/Dashboard';
 import ParentDashboard from '@/pages/parent/Dashboard';
 
 function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public Routes - No authentication required */}
-          <Route path="/" element={<PublicLayout />}>
-            <Route index element={<HomePage />} />
-            <Route path="about" element={<AboutPage />} />
-            <Route path="contact" element={<ContactPage />} />
-            <Route path="login" element={<LoginPage />} />
-          </Route>
+  const { user, isLoading } = useAuth();
 
-          {/* Private Routes - Authentication required */}
-          <Route path="/admin/*" element={
-            <PrivateLayout requiredRole="Admin">
-              <AdminDashboard />
-            </PrivateLayout>
-          } />
-          <Route path="/teacher/*" element={
-            <PrivateLayout requiredRole="Teacher">
-              <TeacherDashboard />
-            </PrivateLayout>
-          } />
-          <Route path="/student/*" element={
-            <PrivateLayout requiredRole="Student">
-              <StudentDashboard />
-            </PrivateLayout>
-          } />
-          <Route path="/parent/*" element={
-            <PrivateLayout requiredRole="Parent">
-              <ParentDashboard />
-            </PrivateLayout>
-          } />
-
-          {/* Catch all route */}
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
-  );
-}
-
-// Simple not found page component
-function NotFoundPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl">Page not found</p>
+  // Show loading spinner only when authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <Router>
+      <Routes>
+        {/* Public Routes - No authentication required */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
+        
+        {/* Dashboard redirect based on role */}
+        <Route 
+          path="/dashboard" 
+          element={
+            user ? (
+              user.role_name === 'Admin' ? <Navigate to="/admin" /> :
+              user.role_name === 'Teacher' ? <Navigate to="/teacher" /> :
+              user.role_name === 'Student' ? <Navigate to="/student" /> :
+              user.role_name === 'Parent' ? <Navigate to="/parent" /> :
+              <Unauthorized />
+            ) : (
+              <Navigate to="/login" />
+            )
+          } 
+        />
+        
+        {/* Protected routes - Only show if user is authenticated and has correct role */}
+        <Route 
+          path="/admin/*" 
+          element={user && user.role_name === 'Admin' ? <AdminDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/teacher/*" 
+          element={user && user.role_name === 'Teacher' ? <TeacherDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/student/*" 
+          element={user && user.role_name === 'Student' ? <StudentDashboard /> : <Unauthorized />} 
+        />
+        <Route 
+          path="/parent/*" 
+          element={user && user.role_name === 'Parent' ? <ParentDashboard /> : <Unauthorized />} 
+        />
+        
+        {/* Catch all route */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
   );
 }
 
