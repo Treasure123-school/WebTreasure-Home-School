@@ -1,3 +1,4 @@
+// client/src/App.tsx
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -18,14 +19,39 @@ import Unauthorized from "@/pages/unauthorized";
 import StudentDashboard from "@/pages/student/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
+import { useAuth } from "@/hooks/useAuth";
 
 // Public routes load immediately without any auth checks
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protected routes handle their own authentication
-function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
+// Protected routes check authentication + role
+function ProtectedRoute({
+  children,
+  requiredRole,
+}: {
+  children: React.ReactNode;
+  requiredRole?: string;
+}) {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Unauthorized />;
+  }
+
+  if (requiredRole && user?.role_name !== requiredRole) {
+    return <Unauthorized />;
+  }
+
   return <>{children}</>;
 }
 
@@ -35,68 +61,94 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Switch>
-          {/* Public Routes - No authentication checks */}
+          {/* Public Routes */}
           <Route path="/">
             <PublicRoute>
               <Landing />
             </PublicRoute>
           </Route>
-          
+
           <Route path="/login">
             <PublicRoute>
               <Login />
             </PublicRoute>
           </Route>
-          
+
           <Route path="/unauthorized">
             <PublicRoute>
               <Unauthorized />
             </PublicRoute>
           </Route>
 
-          {/* Protected Routes - Handle auth internally */}
+          {/* Protected Admin Routes */}
           <Route path="/admin/users/create">
-            <CreateUser />
+            <ProtectedRoute requiredRole="Admin">
+              <CreateUser />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin/users">
-            <AdminUsers />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminUsers />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin/announcements">
-            <AdminAnnouncements />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminAnnouncements />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin/exams">
-            <AdminExams />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminExams />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin/gallery">
-            <AdminGallery />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminGallery />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin/enrollments">
-            <AdminEnrollments />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminEnrollments />
+            </ProtectedRoute>
           </Route>
-          
+
           <Route path="/admin">
-            <AdminDashboard />
+            <ProtectedRoute requiredRole="Admin">
+              <AdminDashboard />
+            </ProtectedRoute>
           </Route>
-          
+
+          {/* Protected Teacher Route */}
           <Route path="/teacher">
-            <TeacherDashboard />
+            <ProtectedRoute requiredRole="Teacher">
+              <TeacherDashboard />
+            </ProtectedRoute>
           </Route>
-          
+
+          {/* Protected Student Route */}
           <Route path="/student">
-            <StudentDashboard />
+            <ProtectedRoute requiredRole="Student">
+              <StudentDashboard />
+            </ProtectedRoute>
           </Route>
-          
+
+          {/* Protected Parent Route */}
           <Route path="/parent">
-            <ParentDashboard />
+            <ProtectedRoute requiredRole="Parent">
+              <ParentDashboard />
+            </ProtectedRoute>
           </Route>
-          
+
+          {/* Optional: Home for general access */}
           <Route path="/home">
-            <Home />
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
           </Route>
 
           {/* Fallback 404 Route */}
