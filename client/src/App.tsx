@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { checkSupabaseConnection } from '@/lib/supabaseClient';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import Login from '@/pages/Login';
@@ -11,8 +13,40 @@ import Landing from '@/pages/landing';
 
 function App() {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const [supabaseConnected, setSupabaseConnected] = useState<boolean | null>(null);
 
-  if (isLoading) {
+  useEffect(() => {
+    // Check Supabase connection on app start
+    const checkConnection = async () => {
+      const connected = await checkSupabaseConnection();
+      setSupabaseConnected(connected);
+    };
+    
+    checkConnection();
+  }, []);
+
+  // Show connection error if Supabase is not connected
+  if (supabaseConnected === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50">
+        <div className="max-w-md p-6 bg-white rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Connection Error</h2>
+          <p className="text-gray-700 mb-4">
+            Unable to connect to the database. Please check your internet connection
+            and make sure the database is running.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading || supabaseConnected === null) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
