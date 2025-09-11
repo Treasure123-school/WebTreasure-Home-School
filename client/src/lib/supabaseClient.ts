@@ -4,37 +4,32 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// Create a dummy client that will fail gracefully
-const createDummyClient = () => {
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Please check your .env file.');
-  return {
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null }, error: new Error('Missing Supabase config') }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      signInWithPassword: () => Promise.resolve({ error: new Error('Missing Supabase config') }),
-      signOut: () => Promise.resolve({ error: new Error('Missing Supabase config') }),
-    }
-  };
-};
+  
+  // In development, throw an error to make it obvious
+  if (import.meta.env.DEV) {
+    throw new Error('Missing Supabase environment variables. Please check your .env file.');
+  }
+}
 
 // Create the Supabase client
-export const supabase = (!supabaseUrl || !supabaseAnonKey) 
-  ? createDummyClient()
-  : createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    });
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
 
-// Temporary: Expose supabase to global scope for debugging
+// Debugging in development only
 if (import.meta.env.DEV) {
   (window as any).supabase = supabase;
   console.log('Supabase client exposed to window.supabase for debugging');
+  
+  // Add auth state change listener for debugging
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log('Auth state changed:', event, session)
+  });
 }
-
-// Optional: Add auth state change listener for debugging
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log('Auth state changed:', event, session)
-});
