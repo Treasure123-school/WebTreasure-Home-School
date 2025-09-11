@@ -11,15 +11,58 @@ export interface AppUser extends User {
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Start as false for public routes
+  const [isLoading, setIsLoading] = useState(false); // Start false for public routes
   const [error, setError] = useState<string | null>(null);
 
+  // 🔹 Helper: safely extract role_name (handles object vs array shape)
+  const extractRoleName = (roles: any): string | null => {
+    if (!roles) return null;
+    if (Array.isArray(roles) && roles.length > 0) {
+      return roles[0]?.role_name ?? null;
+    }
+    if (typeof roles === "object") {
+      return (roles as any).role_name ?? null;
+    }
+    return null;
+  };
+
+  // 🔹 Fetch user profile + role from DB
+  const fetchUserProfile = async (userId: string) => {
+    const { data, error: userError } = await supabase
+      .from("users")
+      .select(`
+        full_name,
+        role_id,
+        roles!inner (
+          role_name
+        )
+      `)
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (userError) {
+      console.error("Error fetching user profile:", userError);
+      return null;
+    }
+
+    if (data) {
+      return {
+        full_name: data.full_name || "User",
+        role_name: extractRoleName(data.roles),
+      };
+    }
+
+    return null;
+  };
+
   useEffect(() => {
-    // Initialize auth in background without blocking UI
+    // Initialize auth in background
     const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession }, error: sessionError } = 
-          await supabase.auth.getSession();
+        const {
+          data: { session: initialSession },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
         if (sessionError) {
           console.error("Session error:", sessionError);
@@ -29,18 +72,12 @@ export function useAuth() {
         setSession(initialSession);
 
         if (initialSession?.user) {
-          // Fetch user profile in background
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('full_name, roles(role_name)')
-            .eq('id', initialSession.user.id)
-            .maybeSingle();
-
-          if (!userError && userData) {
+          const profile = await fetchUserProfile(initialSession.user.id);
+          if (profile) {
             setUser({
               ...initialSession.user,
-              full_name: userData.full_name || 'User',
-              role_name: (userData.roles as any)?.role_name || null,
+              full_name: profile.full_name,
+              role_name: profile.role_name,
             });
           }
         }
@@ -53,9 +90,9 @@ export function useAuth() {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
-        
+
         if (!newSession) {
           setUser(null);
           setError(null);
@@ -63,17 +100,12 @@ export function useAuth() {
         }
 
         try {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('full_name, roles(role_name)')
-            .eq('id', newSession.user.id)
-            .maybeSingle();
-
-          if (!userError && userData) {
+          const profile = await fetchUserProfile(newSession.user.id);
+          if (profile) {
             setUser({
               ...newSession.user,
-              full_name: userData.full_name || 'User',
-              role_name: (userData.roles as any)?.role_name || null,
+              full_name: profile.full_name,
+              role_name: profile.role_name,
             });
             setError(null);
           }
@@ -86,15 +118,17 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // 🔹 Login method
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { data, error: authError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
       if (authError) throw authError;
       return { data, error: null };
