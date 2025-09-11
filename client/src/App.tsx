@@ -1,3 +1,4 @@
+// client/src/App.tsx
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,13 +22,19 @@ import StudentDashboard from "@/pages/student/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
 
-function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode, requiredRole?: string }) {
+// Public routes load immediately without auth checks
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+// Protected routes check authentication and roles
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Checking access..." />
+        <LoadingSpinner message="Verifying access..." />
       </div>
     );
   }
@@ -35,73 +42,117 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode,
   if (!user) {
     return <Login />;
   }
-  
+
   if (requiredRole && user.role_name !== requiredRole) {
     return <Unauthorized />;
   }
-  
+
   return <>{children}</>;
 }
 
 function App() {
   const { isLoading } = useAuth();
 
-  // Show loading spinner only for protected routes, not for public routes
+  // Show app loading state only during initial auth check
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Initializing application..." />
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Switch>
-          {/* Public Routes - Load immediately without auth check */}
+          {/* Public Routes - No authentication required */}
           <Route path="/">
-            <Landing />
-          </Route>
-          <Route path="/login">
-            <Login />
-          </Route>
-          <Route path="/unauthorized">
-            <Unauthorized />
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
           </Route>
           
-          {/* Protected Routes - These will show loading if needed */}
+          <Route path="/login">
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          </Route>
+          
+          <Route path="/unauthorized">
+            <PublicRoute>
+              <Unauthorized />
+            </PublicRoute>
+          </Route>
+
+          {/* Protected Routes - Authentication required */}
           <Route path="/admin/users/create">
-            <ProtectedRoute requiredRole="Admin"><CreateUser /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <CreateUser />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin/users">
-            <ProtectedRoute requiredRole="Admin"><AdminUsers /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminUsers />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin/announcements">
-            <ProtectedRoute requiredRole="Admin"><AdminAnnouncements /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminAnnouncements />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin/exams">
-            <ProtectedRoute requiredRole="Admin"><AdminExams /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminExams />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin/gallery">
-            <ProtectedRoute requiredRole="Admin"><AdminGallery /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminGallery />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin/enrollments">
-            <ProtectedRoute requiredRole="Admin"><AdminEnrollments /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminEnrollments />
+            </ProtectedRoute>
           </Route>
+          
           <Route path="/admin">
-            <ProtectedRoute requiredRole="Admin"><AdminDashboard /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Admin">
+              <AdminDashboard />
+            </ProtectedRoute>
           </Route>
           
           <Route path="/teacher">
-            <ProtectedRoute requiredRole="Teacher"><TeacherDashboard /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Teacher">
+              <TeacherDashboard />
+            </ProtectedRoute>
           </Route>
           
           <Route path="/student">
-            <ProtectedRoute requiredRole="Student"><StudentDashboard /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Student">
+              <StudentDashboard />
+            </ProtectedRoute>
           </Route>
           
           <Route path="/parent">
-            <ProtectedRoute requiredRole="Parent"><ParentDashboard /></ProtectedRoute>
+            <ProtectedRoute requiredRole="Parent">
+              <ParentDashboard />
+            </ProtectedRoute>
           </Route>
           
           <Route path="/home">
-            <ProtectedRoute><Home /></ProtectedRoute>
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
           </Route>
-          
+
           {/* Fallback 404 Route */}
           <Route>
             <NotFound />
