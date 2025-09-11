@@ -1,6 +1,8 @@
+// client/src/pages/home.tsx
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function Home() {
   const { user } = useAuth();
@@ -8,47 +10,17 @@ export default function Home() {
 
   useEffect(() => {
     if (user?.role_name) {
-      switch (user.role_name.toLowerCase()) {
-        case 'admin':
-          setLocation('/admin');
-          break;
-        case 'teacher':
-          setLocation('/teacher');
-          break;
-        case 'student':
-          setLocation('/student');
-          break;
-        case 'parent':
-          setLocation('/parent');
-          break;
-        default:
-          // Stay on home page for unknown roles
-          break;
-      }
+      const role = user.role_name.toLowerCase();
+      setLocation(`/${role}`);
+    } else {
+      // Default redirect if no role is found
+      setLocation('/');
     }
   }, [user, setLocation]);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-backgroundSurface">
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-textPrimary mb-4">
-            Welcome to Treasure-Home School Portal
-          </h1>
-          <p className="text-xl text-textSecondary mb-8">
-            You will be redirected to your dashboard shortly...
-          </p>
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto"></div>
-        </div>
-      </div>
+    <div className="flex min-h-screen items-center justify-center">
+      <LoadingSpinner message="Redirecting to your dashboard..." />
     </div>
   );
 }
