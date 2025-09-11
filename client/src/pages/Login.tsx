@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -36,8 +35,9 @@ export default function Login() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const targetPath = getTargetPath(user.role_name);
-      // Use setTimeout to ensure state updates are processed before navigation
-      setTimeout(() => setLocation(targetPath), 100);
+      // Small delay to ensure state updates are processed
+      const timer = setTimeout(() => setLocation(targetPath), 100);
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user, setLocation]);
 
@@ -73,15 +73,6 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
-
-  // Show loading only during initial auth check, not during login process
-  if (authLoading && !isSubmitting) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Checking authentication..." />
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
@@ -125,7 +116,7 @@ export default function Login() {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isSubmitting || authLoading}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Signing In...</>
