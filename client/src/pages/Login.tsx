@@ -15,29 +15,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading, login } = useAuth();
+  const { user, isAuthenticated, login } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Determine redirect path based on user role
-  const getTargetPath = (roleName?: string | null) => {
-    const pathMap: Record<string, string> = {
-      'Admin': '/admin',
-      'Teacher': '/teacher',
-      'Student': '/student',
-      'Parent': '/parent',
-    };
-    
-    return pathMap[roleName || ''] || '/home';
-  };
-
-  // Redirect if user is already authenticated
+  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      const targetPath = getTargetPath(user.role_name);
-      // Small delay to ensure state updates are processed
-      const timer = setTimeout(() => setLocation(targetPath), 100);
-      return () => clearTimeout(timer);
+      const rolePath = user.role_name ? `/${user.role_name.toLowerCase()}` : '/home';
+      setLocation(rolePath);
     }
   }, [isAuthenticated, user, setLocation]);
 
@@ -53,7 +39,6 @@ export default function Login() {
         throw loginError;
       }
       
-      // Show success message - redirect will be handled by useEffect
       toast({
         title: "Login Successful!",
         description: "Redirecting to your dashboard...",
@@ -61,7 +46,6 @@ export default function Login() {
       });
       
     } catch (err: any) {
-      console.error('Login error:', err);
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       toast({
