@@ -1,5 +1,4 @@
-// client/src/hooks/useAuth.ts
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -15,7 +14,7 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch user profile with role information
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
       const { data, error: queryError } = await supabase
         .from("users")
@@ -40,16 +39,22 @@ export function useAuth() {
       console.error("Exception in fetchUserProfile:", err);
       return null;
     }
-  };
+  }, []);
 
   useEffect(() => {
+    let isMounted = true;
+    let authSubscription: any = null;
+
     const initializeAuth = async () => {
       try {
         const { data: { session: initialSession }, error: sessionError } = 
           await supabase.auth.getSession();
 
+        if (!isMounted) return;
+
         if (sessionError) {
           console.error("Session error:", sessionError);
+          setError(sessionError.message);
           setIsLoading(false);
           return;
         }
@@ -58,17 +63,22 @@ export function useAuth() {
 
         if (initialSession?.user) {
           const profile = await fetchUserProfile(initialSession.user.id);
-          if (profile) {
+          if (isMounted && profile) {
             setUser({
               ...initialSession.user,
               ...profile,
             });
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error initializing auth:", err);
+        if (isMounted) {
+          setError(err.message || "Authentication initialization failed");
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -77,6 +87,8 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        if (!isMounted) return;
+        
         setSession(newSession);
         
         if (!newSession) {
@@ -87,7 +99,7 @@ export function useAuth() {
 
         try {
           const profile = await fetchUserProfile(newSession.user.id);
-          if (profile) {
+          if (isMounted && profile) {
             setUser({
               ...newSession.user,
               ...profile,
@@ -96,12 +108,22 @@ export function useAuth() {
           }
         } catch (err) {
           console.error("Error handling auth change:", err);
+          if (isMounted) {
+            setError("Failed to load user profile");
+          }
         }
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    authSubscription = subscription;
+
+    return () => {
+      isMounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+    };
+  }, [fetchUserProfile]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
