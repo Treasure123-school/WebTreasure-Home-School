@@ -6,12 +6,15 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 // Validate environment variables
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your .env file.');
+  const errorMsg = 'Missing Supabase environment variables. Please check your .env file.';
+  console.error(errorMsg);
   
   // In development, throw an error to make it obvious
   if (import.meta.env.DEV) {
-    throw new Error('Missing Supabase environment variables. Please check your .env file.');
+    throw new Error(errorMsg);
   }
+} else {
+  console.log('Supabase environment variables found');
 }
 
 // Create the Supabase client
@@ -33,3 +36,19 @@ if (import.meta.env.DEV) {
     console.log('Auth state changed:', event, session)
   });
 }
+
+// Add a health check function
+export const checkSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('roles').select('count').limit(1);
+    if (error) {
+      console.error('Supabase connection error:', error);
+      return false;
+    }
+    console.log('Supabase connection successful');
+    return true;
+  } catch (err) {
+    console.error('Supabase connection failed:', err);
+    return false;
+  }
+};
