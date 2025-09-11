@@ -15,8 +15,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { GraduationCap, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
-// 🔹 Role → Route mapping
+// Role → Route mapping
 const roleRoutes: Record<string, string> = {
   Admin: "/admin",
   Teacher: "/teacher",
@@ -30,17 +31,21 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { user, isAuthenticated, login } = useAuth();
+  const { user, isAuthenticated, login, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // 🔹 Redirect when authenticated
+  // Redirect when authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const rolePath =
-        (user.role_name && roleRoutes[user.role_name]) || "/unauthorized";
-
-      setLocation(rolePath);
+    if (isAuthenticated && user && user.role_name) {
+      const rolePath = roleRoutes[user.role_name] || "/unauthorized";
+      
+      // Add a small delay to ensure the UI updates
+      const timer = setTimeout(() => {
+        setLocation(rolePath);
+      }, 100);
+      
+      return () => clearTimeout(timer);
     }
   }, [isAuthenticated, user, setLocation]);
 
@@ -74,6 +79,15 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading during initial auth check
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Checking authentication..." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
