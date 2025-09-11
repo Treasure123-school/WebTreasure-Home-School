@@ -9,34 +9,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from '@/lib/supabaseClient';
+import LoadingSpinner from "@/components/LoadingSpinner";
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, login } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
+  // Determine redirect path based on user role
   const getTargetPath = (roleName?: string | null) => {
-    switch (roleName) {
-      case 'Admin': return '/admin';
-      case 'Teacher': return '/teacher';
-      case 'Student': return '/student';
-      case 'Parent': return '/parent';
-      default: return '/home';
-    }
+    const pathMap: Record<string, string> = {
+      'Admin': '/admin',
+      'Teacher': '/teacher',
+      'Student': '/student',
+      'Parent': '/parent',
+    };
+    
+    return pathMap[roleName || ''] || '/home';
   };
 
   // Redirect if user is already authenticated
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated && user) {
       const targetPath = getTargetPath(user.role_name);
-      setLocation(targetPath);
+      // Use setTimeout to ensure state updates are processed before navigation
+      setTimeout(() => setLocation(targetPath), 100);
     }
-  }, [user, setLocation]);
+  }, [isAuthenticated, user, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,39 +47,19 @@ export default function Login() {
     setError(null);
 
     try {
-      // Direct Supabase authentication
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { error: loginError } = await login(email, password);
+      
+      if (loginError) {
+        throw loginError;
+      }
+      
+      // Show success message - redirect will be handled by useEffect
+      toast({
+        title: "Login Successful!",
+        description: "Redirecting to your dashboard...",
+        variant: 'default',
       });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.user) {
-        // Fetch user profile directly after successful login
-        const { data: userData, error: profileError } = await supabase
-          .from('users')
-          .select('full_name, roles(role_name)')
-          .eq('id', data.user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          // Continue anyway, the useAuth hook will handle this
-        }
-
-        toast({
-          title: "Login Successful!",
-          description: `Welcome back, ${userData?.full_name || 'User'}. Redirecting...`,
-          variant: 'default',
-        });
-
-        // Force a hard redirect to ensure navigation works
-        const targetPath = getTargetPath(userData?.roles?.role_name);
-        window.location.href = targetPath;
-      }
+      
     } catch (err: any) {
       console.error('Login error:', err);
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
@@ -90,6 +73,15 @@ export default function Login() {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading only during initial auth check, not during login process
+  if (authLoading && !isSubmitting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingSpinner message="Checking authentication..." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
@@ -115,6 +107,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)} 
                 required 
                 placeholder="you@example.com" 
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -126,9 +119,14 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)} 
                 required 
                 placeholder="••••••••" 
+                disabled={isSubmitting}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isSubmitting || authLoading}
+            >
               {isSubmitting ? (
                 <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Signing In...</>
               ) : 'Sign In'}
