@@ -1,16 +1,13 @@
-// client/src/App.tsx
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Login from "@/pages/Login";
 import Home from "@/pages/home";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import { queryClient } from "./lib/queryClient";
-import LoadingSpinner from "@/components/LoadingSpinner";
 import AdminUsers from "@/pages/admin/Users";
 import CreateUser from "@/pages/admin/CreateUser";
 import AdminAnnouncements from "@/pages/admin/Announcements";
@@ -22,52 +19,23 @@ import StudentDashboard from "@/pages/student/Dashboard";
 import TeacherDashboard from "@/pages/teacher/Dashboard";
 import ParentDashboard from "@/pages/parent/Dashboard";
 
-// Public routes load immediately without auth checks
+// Public routes load immediately without any auth checks
 function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protected routes check authentication and roles
+// Protected routes handle their own authentication
 function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
-  const { user, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Verifying access..." />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
-
-  if (requiredRole && user.role_name !== requiredRole) {
-    return <Unauthorized />;
-  }
-
   return <>{children}</>;
 }
 
 function App() {
-  const { isLoading } = useAuth();
-
-  // Show app loading state only during initial auth check
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <LoadingSpinner message="Initializing application..." />
-      </div>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Switch>
-          {/* Public Routes - No authentication required */}
+          {/* Public Routes - No authentication checks */}
           <Route path="/">
             <PublicRoute>
               <Landing />
@@ -86,71 +54,49 @@ function App() {
             </PublicRoute>
           </Route>
 
-          {/* Protected Routes - Authentication required */}
+          {/* Protected Routes - Handle auth internally */}
           <Route path="/admin/users/create">
-            <ProtectedRoute requiredRole="Admin">
-              <CreateUser />
-            </ProtectedRoute>
+            <CreateUser />
           </Route>
           
           <Route path="/admin/users">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminUsers />
-            </ProtectedRoute>
+            <AdminUsers />
           </Route>
           
           <Route path="/admin/announcements">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminAnnouncements />
-            </ProtectedRoute>
+            <AdminAnnouncements />
           </Route>
           
           <Route path="/admin/exams">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminExams />
-            </ProtectedRoute>
+            <AdminExams />
           </Route>
           
           <Route path="/admin/gallery">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminGallery />
-            </ProtectedRoute>
+            <AdminGallery />
           </Route>
           
           <Route path="/admin/enrollments">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminEnrollments />
-            </ProtectedRoute>
+            <AdminEnrollments />
           </Route>
           
           <Route path="/admin">
-            <ProtectedRoute requiredRole="Admin">
-              <AdminDashboard />
-            </ProtectedRoute>
+            <AdminDashboard />
           </Route>
           
           <Route path="/teacher">
-            <ProtectedRoute requiredRole="Teacher">
-              <TeacherDashboard />
-            </ProtectedRoute>
+            <TeacherDashboard />
           </Route>
           
           <Route path="/student">
-            <ProtectedRoute requiredRole="Student">
-              <StudentDashboard />
-            </ProtectedRoute>
+            <StudentDashboard />
           </Route>
           
           <Route path="/parent">
-            <ProtectedRoute requiredRole="Parent">
-              <ParentDashboard />
-            </ProtectedRoute>
+            <ParentDashboard />
           </Route>
           
           <Route path="/home">
-            <ProtectedRoute>
-              <Home />
-            </ProtectedRoute>
+            <Home />
           </Route>
 
           {/* Fallback 404 Route */}
