@@ -1,4 +1,3 @@
-// client/src/pages/admin/Dashboard.tsx
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,21 +29,27 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  // Redirect non-admin users
+  // Redirect non-authenticated or non-admin users
   useEffect(() => {
-    if (!authLoading && user && user.role_name !== 'Admin') {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to access the admin dashboard.",
-        variant: "destructive",
-      });
-      setLocation('/');
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        // Not authenticated, redirect to login
+        setLocation('/login');
+      } else if (user && user.role_name !== 'Admin') {
+        // Not authorized, show message and redirect
+        toast({
+          title: "Access Denied",
+          description: "You don't have permission to access the admin dashboard.",
+          variant: "destructive",
+        });
+        setLocation('/');
+      }
     }
-  }, [user, authLoading, setLocation, toast]);
+  }, [user, authLoading, isAuthenticated, setLocation, toast]);
 
   const { 
     data, 
@@ -67,11 +72,23 @@ export default function AdminDashboard() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Show loading while checking authentication
   if (authLoading) {
     return (
       <Layout type="admin">
         <div className="flex min-h-[60vh] items-center justify-center">
           <LoadingSpinner message="Verifying access..." />
+        </div>
+      </Layout>
+    );
+  }
+
+  // If not authenticated or not admin, don't render the dashboard
+  if (!isAuthenticated || (user && user.role_name !== 'Admin')) {
+    return (
+      <Layout type="admin">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <LoadingSpinner message="Redirecting..." />
         </div>
       </Layout>
     );
