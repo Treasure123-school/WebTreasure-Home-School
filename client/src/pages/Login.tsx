@@ -9,13 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GraduationCap, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from '@/lib/supabaseClient';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -29,13 +30,13 @@ export default function Login() {
     }
   };
 
-  // Redirect already authenticated users
+  // Redirect if user is already authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (user) {
       const targetPath = getTargetPath(user.role_name);
       setLocation(targetPath);
     }
-  }, [isAuthenticated, user, setLocation]);
+  }, [user, setLocation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,24 +44,41 @@ export default function Login() {
     setError(null);
 
     try {
-      // Call the login function from useAuth
-      const { error: loginError } = await login(email, password);
-      
-      if (loginError) {
-        throw loginError;
-      }
-      
-      // Show success message
-      toast({
-        title: "Login Successful!",
-        description: "Redirecting to your dashboard...",
-        variant: 'default',
+      // Direct Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      
-      // The useEffect above will handle the redirect once the user state is updated
-      
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        // Fetch user profile directly after successful login
+        const { data: userData, error: profileError } = await supabase
+          .from('users')
+          .select('full_name, roles(role_name)')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          // Continue anyway, the useAuth hook will handle this
+        }
+
+        toast({
+          title: "Login Successful!",
+          description: `Welcome back, ${userData?.full_name || 'User'}. Redirecting...`,
+          variant: 'default',
+        });
+
+        // Force a hard redirect to ensure navigation works
+        const targetPath = getTargetPath(userData?.roles?.role_name);
+        window.location.href = targetPath;
+      }
     } catch (err: any) {
-      console.error("Login error:", err);
+      console.error('Login error:', err);
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
       setError(errorMessage);
       toast({
