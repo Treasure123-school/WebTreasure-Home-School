@@ -11,46 +11,33 @@ export interface AppUser extends User {
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 🔑 Safe two-step fetch (avoids recursion)
+  // Fetch user profile with role information
   const fetchUserProfile = async (userId: string) => {
     try {
-      // Step 1: fetch base user (without roles join)
-      const { data: userData, error: userError } = await supabase
+      const { data, error: queryError } = await supabase
         .from("users")
-        .select("full_name, role_id")
+        .select(`
+          full_name, 
+          role_id,
+          roles:role_id (role_name)
+        `)
         .eq("id", userId)
-        .maybeSingle();
+        .single();
 
-      if (userError) {
-        console.error("Error fetching user (step 1):", userError);
+      if (queryError) {
+        console.error("Error fetching user profile:", queryError);
         return null;
-      }
-      if (!userData) return null;
-
-      // Step 2: fetch role name separately
-      const { data: roleData, error: roleError } = await supabase
-        .from("roles")
-        .select("role_name")
-        .eq("id", userData.role_id)
-        .maybeSingle();
-
-      if (roleError) {
-        console.error("Error fetching role (step 2):", roleError);
-        return {
-          full_name: userData.full_name || "User",
-          role_name: null,
-        };
       }
 
       return {
-        full_name: userData.full_name || "User",
-        role_name: roleData?.role_name ?? null,
+        full_name: data?.full_name || "User",
+        role_name: data?.roles?.role_name || null,
       };
     } catch (err) {
-      console.error("Unexpected error fetching profile:", err);
+      console.error("Exception in fetchUserProfile:", err);
       return null;
     }
   };
@@ -58,13 +45,12 @@ export function useAuth() {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const {
-          data: { session: initialSession },
-          error: sessionError,
-        } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error: sessionError } = 
+          await supabase.auth.getSession();
 
         if (sessionError) {
           console.error("Session error:", sessionError);
+          setIsLoading(false);
           return;
         }
 
@@ -81,32 +67,38 @@ export function useAuth() {
         }
       } catch (err) {
         console.error("Error initializing auth:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     initializeAuth();
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
+        
+        if (!newSession) {
+          setUser(null);
+          setError(null);
+          return;
+        }
 
-      if (!newSession) {
-        setUser(null);
-        setError(null);
-        return;
+        try {
+          const profile = await fetchUserProfile(newSession.user.id);
+          if (profile) {
+            setUser({
+              ...newSession.user,
+              ...profile,
+            });
+            setError(null);
+          }
+        } catch (err) {
+          console.error("Error handling auth change:", err);
+        }
       }
-
-      const profile = await fetchUserProfile(newSession.user.id);
-      if (profile) {
-        setUser({
-          ...newSession.user,
-          ...profile,
-        });
-        setError(null);
-      }
-    });
+    );
 
     return () => subscription.unsubscribe();
   }, []);
@@ -114,17 +106,32 @@ export function useAuth() {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     setError(null);
-
+    
     try {
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        throw authError;
+      }
+
+      // Fetch user profile immediately after successful login
+      if (data.user) {
+        const profile = await fetchUserProfile(data.user.id);
+        if (profile) {
+          setUser({
+            ...data.user,
+            ...profile,
+          });
+        }
+      }
+
       return { data, error: null };
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      const errorMsg = err.message || "Login failed";
+      setError(errorMsg);
       return { data: null, error: err };
     } finally {
       setIsLoading(false);
